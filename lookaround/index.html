@@ -12,8 +12,9 @@
   [hidden]{display:none!important}
   html,body{margin:0;height:100%;background:var(--ink);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--cream);
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-  canvas.grabbing{cursor:grabbing}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:url(cursor-open.svg) 16 16,grab}
+  canvas.grabbing{cursor:url(cursor-fist.svg) 16 16,grabbing}
+  canvas.playing{cursor:default}
   .hint{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;
     font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.9);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;transition:opacity .6s ease;white-space:nowrap;text-align:center}
   .hint small{font-size:10px;letter-spacing:1.6px;opacity:.75;font-weight:600}
@@ -40,18 +41,16 @@
   <svg id="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
   <svg id="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
 </button>
-<div class="hint" id="hint">Hold and drag to look around<small>Left · right to turn &nbsp;·&nbsp; down at the vault to look up</small></div>
+<div class="hint" id="hint">Hold and drag left to look around</div>
 
 <script>
 /* Look-around test.
-   Two "rails" built from the Veo footage, played frame by frame under your finger:
-   - Turn (left/right): vault -> through the building -> Trinity Ark lobby -> back round to the vault.
-   - Look up (at the vault only): vault -> Trinity Ark sign above it -> the ceiling.
-   Up/down is inverted like a camera: drag DOWN to look UP. Let go and your head eases back to eye level. */
+   The Veo turn footage plays frame by frame under your finger, with two stops: the vault and the lobby.
+   The look-up footage (v/) is kept for later; up/down will be inverted like a camera when it returns. */
 (function(){
   var H_COUNT=168, V_COUNT=186;
   var cv=document.getElementById('view'), ctx=cv.getContext('2d');
-  var H=new Array(H_COUNT), V=new Array(V_COUNT), loaded=0, total=H_COUNT+V_COUNT;
+  var H=new Array(H_COUNT), V=new Array(V_COUNT), loaded=0, total=H_COUNT;
   var h=0, v=0;                         // positions in frames (floats)
   var hint=document.getElementById('hint'), bar=document.getElementById('bar'), load=document.getElementById('load');
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -60,52 +59,72 @@
   function pad(n){ return ('000'+n).slice(-4); }
   function want(arr,dir,i){ if(arr[i]) return; var im=new Image(); im.decoding='async'; im.onload=function(){ loaded++; bar.style.width=(loaded/total*100)+'%'; if(loaded>=total) load.classList.add('done'); draw(); }; im.src=dir+'/'+pad(i)+'.jpg'; arr[i]=im; }
   /* coarse pass first (every 6th frame) so you can drag right away, then fill the gaps */
-  [6,3,2,1].forEach(function(step){ for(var i=0;i<H_COUNT;i+=step) want(H,'h',i); for(var j=0;j<V_COUNT;j+=step) want(V,'v',j); });
+  [6,3,2,1].forEach(function(step){ for(var i=0;i<H_COUNT;i+=step) want(H,'h',i); /* look-up frames (v/) parked for now: left and right only */ });
 
   function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(a&&a.complete&&a.naturalWidth) return a; if(b&&b.complete&&b.naturalWidth) return b; } return null; }
   function fit(){ var dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(innerWidth*dpr); cv.height=Math.round(innerHeight*dpr); draw(); }
   var pending=false;
   function draw(){ if(pending) return; pending=true; requestAnimationFrame(function(){ pending=false;
-    var im = v>0.5 ? nearest(V,v) : nearest(H,h); if(!im) return;
+    var im = nearest(H,h); if(!im) return;
     var cw=cv.width, ch=cv.height, k=Math.max(cw/im.naturalWidth, ch/im.naturalHeight), w=im.naturalWidth*k, hh=im.naturalHeight*k;
     ctx.drawImage(im,(cw-w)/2,(ch-hh)/2,w,hh); }); }
   addEventListener('resize',fit); fit();
 
-  /* ---- drag to look ---- */
-  var down=false, lx=0, ly=0, axis=null, velH=0, velV=0, lt=0, raf=0, sx=0, sy=0;
-  function clampH(x){ return Math.max(0,Math.min(H_COUNT-1,x)); }
-  function clampV(x){ return Math.max(0,Math.min(V_COUNT-1,x)); }
-  function atVault(){ return h<=VAULT_ZONE; }
-  /* how many frames one pixel of drag moves: tuned so a full-width swipe turns about a quarter of the way round */
-  function kH(){ return H_COUNT/(innerWidth*3.6); }
-  function kV(){ return V_COUNT/(innerHeight*2.4); }
-  cv.addEventListener('pointerdown',function(e){ down=true; axis=null; sx=lx=e.clientX; sy=ly=e.clientY; lt=performance.now(); velH=velV=0; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
-  cv.addEventListener('pointermove',function(e){ if(!down) return;
-    var dx=e.clientX-lx, dy=e.clientY-ly, now=performance.now(), dt=Math.max(1,now-lt);
-    if(!axis && Math.hypot(e.clientX-sx,e.clientY-sy)>6){ axis = (Math.abs(e.clientY-sy)>Math.abs(e.clientX-sx) && (atVault()||v>0.5)) ? 'v' : 'h'; }
-    if(axis==='h' && v<0.5){ var nh=clampH(h - dx*kH()); velH=(nh-h)/dt; h=nh; }
-    if(axis==='v'){ var nv=clampV(v + dy*kV()); velV=(nv-v)/dt; v=nv; if(v<=0.5) v=0; }
-    lx=e.clientX; ly=e.clientY; lt=now; draw(); });
-  function up(){ if(!down) return; down=false; cv.classList.remove('grabbing');
-    var t0=performance.now(), vh=velH*16, vfrom=v;
-    (function step(now){ var moving=false;
-      if(Math.abs(vh)>0.02 && !reduce){ h=clampH(h+vh); vh*=0.9; moving=true; }
-      if(v>0){ var t=Math.min(1,(now-t0)/1600), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; v=vfrom*(1-e); if(t>=1) v=0; else moving=true; }
-      draw(); if(moving) raf=requestAnimationFrame(step); })(t0); }
+  /* ---- drag to look: two stops, left and right only for now ----
+     Stop 1 is the vault. Drag left to start turning; past the corner the camera takes over,
+     glitches through the building and lands in the Trinity Ark lobby (stop 2).
+     From the lobby, drag left again; past the lounge the camera takes over and carries you
+     round to the vault, no glitch, and settles back at stop 1.
+     Let go before the takeover point and the view eases back to the stop you're at. */
+  var STOPS=[ {at:0,  trig:36, to:82,  glitch:true,  loop:false},
+              {at:82, trig:96, to:167, glitch:false, loop:true } ];
+  var stop=0, playing=false, down=false, lx=0, raf=0, PLAY_FPS=13, GLITCH_AT=68;
+  function kH(){ return H_COUNT/(innerWidth*3.6); }   /* a full-width swipe turns about a quarter of the way */
+  function setH(n){ var st=STOPS[stop]; h=Math.max(st.at,Math.min(st.trig,n)); if(h>=st.trig) autoplay(); }
+  function autoplay(){
+    var st=STOPS[stop]; playing=true; down=false; cancelAnimationFrame(raf);
+    cv.classList.remove('grabbing'); cv.classList.add('playing');
+    var from=h, t0=performance.now(), glitched=!st.glitch;
+    (function step(now){
+      var n=from+(now-t0)/1000*PLAY_FPS;
+      if(!glitched && n>=GLITCH_AT){ glitched=true; playGlitch(); }
+      if(n>=st.to){ h=st.to; draw(); if(st.loop){ fadeHome(); } else { stop=1; playing=false; cv.classList.remove('playing'); } return; }
+      h=n; draw(); raf=requestAnimationFrame(step); })(t0);
+  }
+  function fadeHome(){ /* the far side of the turn is a slightly different vault, so dissolve into the real one */
+    var a=nearest(H,H_COUNT-1), b=nearest(H,0), t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/700);
+      if(a&&b){ paint(a,1); paint(b,t); }
+      if(t<1){ raf=requestAnimationFrame(step); return; }
+      h=0; stop=0; playing=false; cv.classList.remove('playing'); draw(); })(t0);
+  }
+  function paint(im,alpha){ var cw=cv.width, ch=cv.height, k=Math.max(cw/im.naturalWidth, ch/im.naturalHeight), w=im.naturalWidth*k, hh=im.naturalHeight*k;
+    ctx.globalAlpha=alpha; ctx.drawImage(im,(cw-w)/2,(ch-hh)/2,w,hh); ctx.globalAlpha=1; }
+  function settle(){ /* let go early: ease back to the stop */
+    var st=STOPS[stop], from=h, t0=performance.now(); if(Math.abs(from-st.at)<.5){ h=st.at; draw(); return; }
+    (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3);
+      h=from+(st.at-from)*e; draw(); if(t<1) raf=requestAnimationFrame(step); })(t0);
+  }
+  cv.addEventListener('pointerdown',function(e){ if(playing) return; down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; setH(h-(e.clientX-lx)*kH()); lx=e.clientX; if(!playing) draw(); });
+  function up(){ if(!down) return; down=false; cv.classList.remove('grabbing'); if(!playing) settle(); }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
-  /* keyboard: arrows turn and look up */
-  addEventListener('keydown',function(e){ if(e.key==='ArrowRight'){ h=clampH(h+3); v=0; } else if(e.key==='ArrowLeft'){ h=clampH(h-3); v=0; } else if(e.key==='ArrowUp' && atVault()){ v=clampV(v+4); } else if(e.key==='ArrowDown'){ v=clampV(v-4); } else return; hint.classList.add('gone'); draw(); });
+  addEventListener('keydown',function(e){ if(playing) return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ hint.classList.add('gone'); startSound(); autoplay(); } });
 
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
   var ac=null, out=null, buf=null, started=false, muted=false, muteBtn=document.getElementById('mute');
   try{ muted=localStorage.getItem('vaultMuted')==='1'; }catch(_){}
   try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(_){}
+  var glitchRaw=fetch('../audio/glitch.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), glitchBuf=null;
+  function playGlitch(){ if(!ac||muted) return; function go(){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=glitchBuf; g.gain.value=1.3; s.connect(g); g.connect(out); s.start(); }
+    if(glitchBuf) go(); else glitchRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ glitchBuf=b; go(); }); }); }
   var raw=fetch('../audio/hum-loop.wav').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
   function startSound(){
     if(!ac){ try{ var C=window.AudioContext||window.webkitAudioContext; try{ ac=new C({latencyHint:'playback'}); }catch(_){ ac=new C(); }
       out=ac.createGain(); out.gain.value=muted?0:1; var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.connect(out); out.connect(ac.destination); ac._in=lp; }catch(_){ return; } }
     if(ac.state!=='running'){ try{ ac.resume(); }catch(_){} }
     if(started) return; started=true;
+    glitchRaw.then(function(a){ if(a && !glitchBuf) ac.decodeAudioData(a.slice(0),function(b){ glitchBuf=b; }); });
     raw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=b; s.loop=true; g.gain.setValueAtTime(0,ac.currentTime); g.gain.linearRampToValueAtTime(.28,ac.currentTime+1.5); s.connect(g); g.connect(ac._in); s.start(); }); });
   }
   function paint(){ document.getElementById('on').toggleAttribute('hidden',muted); document.getElementById('off').toggleAttribute('hidden',!muted); muteBtn.classList.toggle('is-muted',muted); muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
