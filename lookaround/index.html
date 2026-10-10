@@ -179,7 +179,7 @@
       if((d>0&&n>=to)||(d<0&&n<=to)){ h=to; draw();
         if(loopHome){ fadeHome(); return; }
         stop=toStop; off=0; playing=false; cv.classList.remove('playing'); place();
-        if(stop===1){ lobbyIn(520); glitchOut(480); } return; }
+        if(stop===1){ lobbyIn(520); glitchOut(480); armIdle(); } return; }
       h=n; draw(); raf=requestAnimationFrame(step); })(t0);
   }
   function fadeHome(){ /* the far side of the turn is a slightly different vault: swap to the real one under the glitch */
@@ -190,10 +190,21 @@
   }
   var vel=0, lastMoveT=0, idleTimer=0;
   function glide(){ /* let go: keep the momentum for a moment, then hold where you are */
-    var v=vel*16; if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); return; }
+    var v=vel*16; if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); if(stop===1) armIdle(); return; }
     (function step(){ if(playing||down) return; if(Math.abs(v)>0.4){ setOff(off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
   }
-  function armIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(function(){ if(!down && !playing && Math.abs(off)>0.5) settle(); },5000); }
+  /* let go and leave it: a couple of seconds later the camera comes back to the vault on its own.
+     From the lobby it waits a little longer (it's worth a look), then glitches straight home. */
+  var IDLE_VAULT=2000, IDLE_LOBBY=5000;
+  function armIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(function(){ if(down||playing) return;
+    if(stop===1) goHome(); else if(Math.abs(off)>0.5) settle(); }, stop===1?IDLE_LOBBY:IDLE_VAULT); }
+  function goHome(){ /* quick glitch cut from the lobby back to the vault */
+    playing=true; cancelAnimationFrame(raf); cv.classList.add('playing'); playGlitch(0.8); zoomTo(1,500);
+    var t0=performance.now(), swapped=false;
+    (function step(now){ var t=(now-t0)/260; gA=Math.min(0.8,t*0.8)*(0.8+0.2*Math.random());
+      if(t<1){ draw(); raf=requestAnimationFrame(step); return; }
+      if(!swapped){ swapped=true; cancelAnimationFrame(lobbyRaf); lobbyA=0; stop=0; off=0; lastOff=0; homeBlend=0; h=0; playing=false; cv.classList.remove('playing'); place(); glitchOut(480); } })(t0);
+  }
   function settle(){ /* ease back to the stop */
     clearTimeout(idleTimer); zoomTo(1,900); var from=off, t0=performance.now(); if(Math.abs(from)<.5){ off=0; place(); if(stop===1 && lobbyA<1) lobbyIn(); return; }
     (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3);
