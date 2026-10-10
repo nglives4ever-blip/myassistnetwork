@@ -200,7 +200,7 @@
       off=from*(1-e); place(); if(t<1) raf=requestAnimationFrame(step); else if(stop===1 && lobbyA<1) lobbyIn(); })(t0);
   }
   cv.addEventListener('pointerdown',function(e){ if(playing) return; clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
-  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; var now=performance.now(), prev=off; setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function up(){ if(!down) return; down=false; cv.classList.remove('grabbing'); if(!playing){ if(performance.now()-lastMoveT>120) vel=0; glide(); } }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
   addEventListener('keydown',function(e){ if(playing) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
