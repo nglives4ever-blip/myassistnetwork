@@ -57,29 +57,52 @@
   var VAULT_ZONE=3;                     // how close to the vault (in frames) you must be to look up
 
   function pad(n){ return ('000'+n).slice(-4); }
-  function want(arr,dir,i){ if(arr[i]) return; var im=new Image(); im.decoding='async'; im.onload=function(){ loaded++; bar.style.width=(loaded/total*100)+'%'; if(loaded>=total) load.classList.add('done'); draw(); }; im.src=dir+'/'+pad(i)+'.jpg'; arr[i]=im; }
-  /* coarse pass first (every 6th frame) so you can drag right away, then fill the gaps */
-  [6,3,2,1].forEach(function(step){ for(var i=0;i<H_COUNT;i+=step) want(H,'h',i); /* look-up frames (v/) parked for now: left and right only */ });
+  function ready(im){ return im && im._ok; }
+  function want(arr,dir,i){ if(arr[i]) return; var im=new Image(); im.decoding='async';
+    im.onload=function(){ var fin=function(){ im._ok=true; loaded++; bar.style.width=(loaded/total*100)+'%'; if(loaded>=total) load.classList.add('done'); draw(); };
+      if(im.decode) im.decode().then(fin,fin); else fin(); };
+    im.src=dir+'/'+pad(i)+'.jpg'; arr[i]=im; }
+  /* frames closest to where you start (vault, both sides of it, and the lobby) load first, so the first drag is never waiting */
+  (function(){ var order=[]; for(var i=0;i<H_COUNT;i++) order.push(i);
+    order.sort(function(a,b){ function d(x){ return Math.min(Math.abs(x-16),Math.abs(x-158),Math.abs(x-82)*1.5); } return d(a)-d(b); });
+    order.forEach(function(i){ want(H,'h',i); }); /* look-up frames (v/) parked for now: left and right only */ })();
 
-  function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(a&&a.complete&&a.naturalWidth) return a; if(b&&b.complete&&b.naturalWidth) return b; } return null; }
+  /* How far the picture actually slides between each frame and the next (in source pixels, measured from the footage).
+     Dragging moves through this distance one to one, so the room stays stuck to your hand: no dead spots where the
+     camera was holding still, and in between frames the picture slides and blends instead of jumping. */
+  var D=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,6,10,15,20,24,28,31,35,37,39,42,44,45,46,47,48,49,50,51,53,57,59,63,54,54,54,55,53,53,52,52,51,50,50,50,49,51,52,52,52,50,49,49,48,50,51,49,46,44,41,39,36,34,31,29,26,24,21,19,16,14,11,9,10,11,11,13,13,15,15,15,17,17,17,19,19,19,20,19,20,19,19,19,19,18,18,17,18,19,20,21,23,24,26,27,28,29,30,31,31,32,32,32,33,35,37,40,42,44,44,45,44,43,43,43,44,44,45,44,49,47,46,45,43,42,41,40,38,36,33,31,29,25,23,19,16,13,10,8,6,4,3,2,1,0,0,0,0,0,0,0];
+  var S=[0]; for(var q=0;q<D.length;q++) S.push(S[q]+D[q]);
+  var OVER=1.06, SHIFT0=30;   /* a touch of overscan so the sliding picture never shows an edge */
+  function frameAt(s){ if(s<=0) return 0; if(s>=S[S.length-1]) return S.length-1;
+    var lo=0, hi=S.length-1; while(hi-lo>1){ var m=(lo+hi)>>1; if(S[m]<=s) lo=m; else hi=m; }
+    return D[lo]>0 ? lo+(s-S[lo])/D[lo] : lo; }
+  function kc(){ return Math.max(cv.width/1280, cv.height/720); }
+
+  function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(ready(a)) return a; if(ready(b)) return b; } return null; }
   function fit(){ var dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(innerWidth*dpr); cv.height=Math.round(innerHeight*dpr); draw(); }
   var pending=false;
   function draw(){ if(pending) return; pending=true; requestAnimationFrame(function(){ pending=false;
-    var im = nearest(H,h); if(!im) return;
-    var cw=cv.width, ch=cv.height, k=Math.max(cw/im.naturalWidth, ch/im.naturalHeight), w=im.naturalWidth*k, hh=im.naturalHeight*k;
-    ctx.save(); if(zoom!==1){ ctx.translate(cw/2,ch/2); ctx.scale(zoom,zoom); ctx.translate(-cw/2,-ch/2); }
-    ctx.drawImage(im,(cw-w)/2,(ch-hh)/2,w,hh);
-    if(homeBlend>0){ var home=nearest(H,0); if(home){ ctx.globalAlpha=homeBlend; ctx.drawImage(home,(cw-w)/2,(ch-hh)/2,w,hh); ctx.globalAlpha=1; } }
-    if(lobbyA>0 && LOBBY_HD.complete && LOBBY_HD.naturalWidth){ /* the sharp lobby still, lined up with the video frame and settling into place */
-      var r=1-lobbyK, sc=1+0.035*r, u=w/1280, lw=w*sc, lh=lw*LOBBY_HD.naturalHeight/LOBBY_HD.naturalWidth;
-      ctx.globalAlpha=lobbyA; ctx.drawImage(LOBBY_HD,(cw-w)/2+11*r*u,(ch-hh)/2-4*r*u,lw,lh); ctx.globalAlpha=1; }
+    var i0=Math.floor(h), f=h-i0, A=H[i0], B=H[Math.min(H_COUNT-1,i0+1)], di=D[i0]||0;
+    var cw=cv.width, ch=cv.height, k=kc(), w=1280*k, hh=720*k, x0=(cw-w)/2+SHIFT0*k, y0=(ch-hh)/2;
+    var sz=zoom*OVER; ctx.save(); ctx.translate(cw/2,ch/2); ctx.scale(sz,sz); ctx.translate(-cw/2,-ch/2);
+    if(ready(A) && (f<0.002 || ready(B))){
+      ctx.drawImage(A,x0-f*di*k,y0,w,hh);                                   /* this frame slides along with your hand */
+      if(f>0.3){ var fa=Math.min(1,(f-0.3)/0.4); ctx.globalAlpha=fa*fa*(3-2*fa); ctx.drawImage(B,x0+(1-f)*di*k,y0,w,hh); ctx.globalAlpha=1; }   /* and the next one cross-fades in, lined up with it, in the middle of the gap so there is no ghosting */
+    } else { var im=nearest(H,h); if(!im){ ctx.restore(); return; } ctx.drawImage(im,x0,y0,w,hh); }
+    if(homeBlend>0){ var home=nearest(H,0); if(home){ var hs0=(stop===0 && off<0 && !playing)?-off*k:0; ctx.globalAlpha=homeBlend; ctx.drawImage(home,x0+hs0,y0,w,hh); ctx.globalAlpha=1; } }
+    var dragT=(stop===1 && !playing)?Math.min(1,Math.abs(off)/18):0, la=lobbyA*(1-dragT);
+    if(la>0 && LOBBY_HD.complete && LOBBY_HD.naturalWidth){ /* the sharp lobby still, locked onto the exact position of the video frame underneath
+      (measured from the footage), so it slides with your hand and hands off to the footage without doubling up */
+      var hs=(stop===1 && !playing)?-off*k:0;
+      ctx.save(); ctx.translate(x0+hs,y0); ctx.scale(k,k); ctx.transform(HD_M[0],HD_M[3],HD_M[1],HD_M[4],HD_M[2],HD_M[5]);
+      ctx.globalAlpha=la; ctx.drawImage(LOBBY_HD,0,0,1280,1280*LOBBY_HD.naturalHeight/LOBBY_HD.naturalWidth); ctx.restore(); }
     ctx.restore();
     if(gA>0.02) applyGlitch(gA);
   }); }
   /* ---- grab zoom: the camera leans in when you take hold, which hides the hand-off between the still and the footage ---- */
-  var zoom=1, zoomRaf=0, GRAB_ZOOM=1.12;
+  var zoom=1, zoomRaf=0, GRAB_ZOOM=1.07;
   function zoomTo(target,ms){ cancelAnimationFrame(zoomRaf); var z0=zoom, t0=performance.now();
-    (function step(now){ var t=Math.min(1,(now-t0)/ms), e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; zoom=z0+(target-z0)*e; draw(); if(t<1) zoomRaf=requestAnimationFrame(step); })(t0); }
+    (function step(now){ var t=Math.min(1,(now-t0)/ms), e=1-Math.pow(1-t,3); zoom=z0+(target-z0)*e; draw(); if(t<1) zoomRaf=requestAnimationFrame(step); })(t0); }
   function glitchPulse(a,ms){ gA=Math.max(gA,a); glitchOut(ms); }
   /* ---- live digital glitch, drawn over the picture so it can carry the camera all the way into the HD lobby ---- */
   var gA=0, gc=document.createElement('canvas'), gx=gc.getContext('2d'), rc=document.createElement('canvas'), rx=rc.getContext('2d');
@@ -109,6 +132,7 @@
   }
   /* ---- the lobby rests on the high-definition still instead of the softer video frame ---- */
   var LOBBY_HD=new Image(); LOBBY_HD.src='lobby.jpg';
+  var HD_M=[1.0676,0.0205,-11.9,-0.0205,1.0676,-13.2];   /* HD still -> lobby video frame (scale, rotation, offset in 1280px units) */
   var lobbyA=0, lobbyK=0, lobbyRaf=0;
   function lobbyIn(ms){ ms=ms||700; cancelAnimationFrame(lobbyRaf); var a0=lobbyA, t0=performance.now();
     (function step(now){ var t=Math.min(1,(now-t0)/ms), e=t*t*(3-2*t); lobbyA=a0+(1-a0)*e; lobbyK=e; draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
@@ -124,24 +148,26 @@
        lobby, drag right -> back through the glitch to the vault
      Let go anywhere and the view stays where you left it (with a little glide); after a few quiet seconds it drifts home. */
   var END=H_COUNT-1, LOBBY=82, GLITCH_HI=78, GLITCH_LO=68, PLAY_FPS=13;
-  var LIMIT=[ {fwd:56, back:-44},      /* vault: frames 0..56 ahead (into the bright corridor), 167..123 behind */
-              {fwd:36, back:-14} ];    /* lobby: frames 82..118 ahead (the lounge side), 82..68 behind */
+  /* how far you can look before the camera takes over, in source pixels of real picture movement */
+  var LIMIT=[ {fwd:S[44], back:-(S[END]-S[127])},      /* vault: into the bright corridor / round the other side */
+              {fwd:S[118]-S[LOBBY], back:-(S[LOBBY]-S[68])} ];   /* lobby: the lounge side / back toward the glitch */
   var stop=0, off=0, playing=false, down=false, lx=0, raf=0, homeBlend=0;
-  function kH(){ return H_COUNT/(innerWidth*3.0); }   /* a full-width swipe turns about a third of the way */
+  function pxScale(){ return kc()*OVER*zoom/Math.min(window.devicePixelRatio||1,2); }   /* screen pixels per source pixel: 1:1 with the cursor */
   var lastOff=0;
   function place(){ /* turn (stop, off) into a frame, blending the real vault in near home when going backwards */
-    if(stop===0 && off<0 && lastOff>=0 && !playing) glitchPulse(0.3,320); lastOff=off;
-    if(stop===0){ if(off>=0){ h=off; homeBlend=0; } else { h=END+off; homeBlend=Math.max(0,1+off/3); } }
-    else { h=LOBBY+off; homeBlend=0; } draw(); }
+    if(stop===0 && off<0 && lastOff>=0 && !playing) glitchPulse(0.22,260); lastOff=off;
+    if(stop===0){ if(off>=0){ h=off<0.5?0:frameAt(off); homeBlend=0; } else { h=frameAt(S[END]+off); homeBlend=Math.max(0,1+off/40); } }
+    else { h=frameAt(S[LOBBY]+off); homeBlend=0; } draw(); }
   function setOff(n){ var L=LIMIT[stop]; off=Math.max(L.back,Math.min(L.fwd,n)); place();
     if(off>=L.fwd) autoplay(1); else if(off<=L.back) autoplay(-1); }
   function autoplay(dir){
+    if(stop===1){ lobbyA=lobbyA*Math.max(0,1-Math.abs(off)/90); lobbyOut(); }
     playing=true; down=false; cancelAnimationFrame(raf); cv.classList.remove('grabbing'); cv.classList.add('playing'); homeBlend=0;
     var from=h, to, glitch=false, toStop, loopHome=false;
     if(stop===0 && dir>0){ to=LOBBY; glitch=true; toStop=1; }
-    else if(stop===0){ from=END+off; to=LOBBY; toStop=1; }
-    else if(dir>0){ to=END; toStop=0; loopHome=true; }
-    else { to=0; glitch=true; toStop=0; }
+    else if(stop===0){ to=LOBBY; toStop=1; }
+    else if(dir>0){ to=161; toStop=0; loopHome=true; }
+    else { to=16; glitch=true; toStop=0; }   /* the first frames are the camera holding still: land where it starts moving */
     var d=to>from?1:-1, t0=performance.now(), tPrev=t0, pos=from, glitched=!glitch, leanedOut=false, arriveGlitch=(toStop===1 && !glitch) || loopHome, arriveStarted=false;
     (function step(now){
       var el=(now-tPrev)/1000; tPrev=now; var fps=(glitch && pos>=GLITCH_LO-2 && pos<=LOBBY)?24:PLAY_FPS; pos+=d*el*fps; var n=pos;
@@ -158,26 +184,26 @@
   }
   function fadeHome(){ /* the far side of the turn is a slightly different vault: swap to the real one under the glitch */
     var t0=performance.now(); glitchOut(520);
-    (function step(now){ var t=Math.min(1,(now-t0)/380); h=END; homeBlend=t; draw();
+    (function step(now){ var t=Math.min(1,(now-t0)/380); h=161; homeBlend=t; draw();
       if(t<1){ raf=requestAnimationFrame(step); return; }
       stop=0; off=0; lastOff=0; playing=false; cv.classList.remove('playing'); place(); })(t0);
   }
   var vel=0, lastMoveT=0, idleTimer=0;
   function glide(){ /* let go: keep the momentum for a moment, then hold where you are */
-    var v=vel*16; if(Math.abs(off)<3 && Math.abs(v)<0.6){ settle(); return; }
-    (function step(){ if(playing||down) return; if(Math.abs(v)>0.05){ setOff(off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
+    var v=vel*16; if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); return; }
+    (function step(){ if(playing||down) return; if(Math.abs(v)>0.4){ setOff(off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
   }
   function armIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(function(){ if(!down && !playing && Math.abs(off)>0.5) settle(); },5000); }
   function settle(){ /* ease back to the stop */
-    clearTimeout(idleTimer); zoomTo(1,900); var from=off, t0=performance.now(); if(Math.abs(from)<.5){ off=0; place(); if(stop===1) lobbyIn(); return; }
+    clearTimeout(idleTimer); zoomTo(1,900); var from=off, t0=performance.now(); if(Math.abs(from)<.5){ off=0; place(); if(stop===1 && lobbyA<1) lobbyIn(); return; }
     (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3);
-      off=from*(1-e); place(); if(t<1) raf=requestAnimationFrame(step); else if(stop===1) lobbyIn(); })(t0);
+      off=from*(1-e); place(); if(t<1) raf=requestAnimationFrame(step); else if(stop===1 && lobbyA<1) lobbyIn(); })(t0);
   }
-  cv.addEventListener('pointerdown',function(e){ if(playing) return; clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,320); if(stop===1 && lobbyA>0.05){ lobbyOut(); glitchPulse(0.3,300); } down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
-  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; var now=performance.now(), prev=off; setOff(off-(e.clientX-lx)*kH()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+  cv.addEventListener('pointerdown',function(e){ if(playing) return; clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function up(){ if(!down) return; down=false; cv.classList.remove('grabbing'); if(!playing){ if(performance.now()-lastMoveT>120) vel=0; glide(); } }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
-  addEventListener('keydown',function(e){ if(playing) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1){ lobbyOut(); glitchPulse(0.3,300); } autoplay(d); });
+  addEventListener('keydown',function(e){ if(playing) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
 
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
   var ac=null, out=null, buf=null, started=false, muted=false, muteBtn=document.getElementById('mute');
