@@ -132,6 +132,18 @@ form{display:flex;flex-direction:column;gap:14px}
 .terminal.on-screen.denied{animation:shake2 .4s ease}
 @keyframes shake2{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 8px))}75%{transform:translateX(calc(-50% + 8px))}}
 @media (prefers-reduced-motion:reduce){.press{animation:none}.walk{transition:none}}
+/* coming soon (shown instead of the hub until the hub is ready) */
+.soon{position:fixed;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));
+  background:radial-gradient(ellipse at center,#fffdf6 0%,#f7f1e3 55%,#efe6d2 100%);color:var(--navy);animation:soonIn 1.2s ease both}
+@keyframes soonIn{from{opacity:0;filter:brightness(1.6)}to{opacity:1;filter:none}}
+.soon .s-logo{width:min(120px,30vw);height:auto;filter:drop-shadow(0 14px 26px rgba(18,26,51,.18))}
+.soon .s-mark{width:min(240px,64vw);height:auto}
+.soon h1{margin:6px 0 0;font-size:clamp(30px,8vw,52px);font-weight:800;letter-spacing:.14em;text-transform:uppercase;background:linear-gradient(180deg,#C9963F,#8A6424);-webkit-background-clip:text;background-clip:text;color:transparent}
+.soon p{margin:0;font-size:14px;letter-spacing:2.4px;text-transform:uppercase;color:var(--muted)}
+.soon .s-foot{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:11px;color:#8A90A0;padding:0 16px}
+.soon .s-back{margin-top:10px;background:none;border:1px solid rgba(138,100,36,.35);color:#8A6424;font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer}
+.soon .s-back:focus-visible{outline:2px solid #C9963F;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.soon{animation:none}}
 </style>
 
 
@@ -170,6 +182,14 @@ form{display:flex;flex-direction:column;gap:14px}
   </button>
   <p class="vfoot">MyAssist™ is a trademark of 2451842 Alberta Inc. © <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</p>
   <div class="flash" id="flash"></div>
+</section>
+<section class="soon" id="soon" hidden aria-label="Coming soon">
+  <img class="s-logo" src="img/myassist-logo.png" alt="" width="120" height="123">
+  <img class="s-mark" src="img/myassist-wordmark.png" alt="MyAssist" width="240" height="43">
+  <h1>Coming Soon</h1>
+  <p>MyAssist Network</p>
+  <button class="s-back" id="soonBack" type="button">Back to the vault</button>
+  <span class="s-foot">MyAssist&trade; is a trademark of 2451842 Alberta Inc. &copy; <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</span>
 </section>
 <div class="wrap">
 
@@ -216,6 +236,8 @@ form{display:flex;flex-direction:column;gap:14px}
 <script>
 /* ===== SETTINGS: paste from Supabase > Project Settings > API (project: myassist-network) =====
    The "anon public" key is safe to put here. NEVER paste the service_role key. */
+/* false = show Coming Soon after the unlock instead of the project hub */
+var SHOW_HUB = false;
 var SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';
 var SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_PUBLIC_KEY';
 /* Where the kiosk screen sits in img/vault.jpg, as fractions of the picture (x, y, width, height) */
@@ -384,9 +406,10 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
     setTimeout(function(){ term.hidden=true; vault.classList.add('opening'); sDoor(); },700);   /* placeholder for the door-opening video */
     setTimeout(function(){ showHub(); },1800);
   }
-  function showHub(){ hub.hidden=false; vault.classList.add('gone'); setTimeout(function(){ vault.hidden=true; vault.classList.remove('gone','opening','zoomed','walking','unlocking'); try{ unlockVid.pause(); unlockVid.currentTime=0; }catch(e){} press.hidden=true; back.hidden=true; try{ walk.currentTime=0; }catch(e){} term.classList.remove('granted'); status.textContent='Identify yourself'; },800); if(master){ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+2.5); } }
+  function showHub(){ if(SHOW_HUB){ hub.hidden=false; } else { document.getElementById('soon').hidden=false; } vault.classList.add('gone'); setTimeout(function(){ vault.hidden=true; vault.classList.remove('gone','opening','zoomed','walking','unlocking'); try{ unlockVid.pause(); unlockVid.currentTime=0; }catch(e){} press.hidden=true; back.hidden=true; try{ walk.currentTime=0; }catch(e){} term.classList.remove('granted'); status.textContent='Identify yourself'; },800); if(master){ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+2.5); } }
   function showVault(){ hub.hidden=true; vault.hidden=false; back.hidden=true; term.hidden=true; placeHot(); if(master){ settle(); } }
 
+  document.getElementById('soonBack').addEventListener('click',function(){ document.getElementById('soon').hidden=true; showVault(); });
   var sb=null;
   if(window.supabase && SUPABASE_URL.indexOf('PASTE')!==0){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
 
