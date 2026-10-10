@@ -112,6 +112,7 @@ form{display:flex;flex-direction:column;gap:14px}
 .vbtn:focus-visible{outline:2px solid #F0C46E;outline-offset:3px}
 .vbtn.back{left:14px}
 .vbtn.mute{right:14px;padding:9px}
+.vbtn.mute.is-muted{color:rgba(243,230,200,.45);border-color:rgba(243,230,200,.18);background:rgba(0,0,0,.6)}
 .vfoot{position:absolute;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0;padding-inline:16px;text-align:center;font-size:10px;letter-spacing:.4px;color:rgba(243,230,200,.55)}
 .flash{position:absolute;inset:0;background:radial-gradient(circle at center,#fff6dc 0%,#f0c46e 45%,rgba(240,196,110,0) 75%);opacity:0;pointer-events:none;transition:opacity .9s ease}
 .vault.opening .flash{opacity:1}
@@ -399,7 +400,7 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
     var s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain(); s.buffer=noise(3); f.type='lowpass'; f.frequency.value=120;
     g.gain.setValueAtTime(0,t+.6); g.gain.linearRampToValueAtTime(.5,t+1.2); g.gain.exponentialRampToValueAtTime(.0001,t+3.2); s.connect(f); f.connect(g); g.connect(fx); s.start(t+.6); }
   var muteBtn=document.getElementById('muteBtn');
-  function paintMute(){ document.getElementById('icoOn').hidden=muted; document.getElementById('icoOff').hidden=!muted; muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
+  function paintMute(){ /* SVG icons ignore .hidden, so toggle the attribute itself */ document.getElementById('icoOn').toggleAttribute('hidden',muted); document.getElementById('icoOff').toggleAttribute('hidden',!muted); muteBtn.classList.toggle('is-muted',muted); muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
   muteBtn.addEventListener('click',function(){ muted=!muted; try{ localStorage.setItem('vaultMuted',muted?'1':'0'); }catch(e){} if(!ac&&!muted) startHum(); if(out) out.gain.value=muted?0:1; walkSnds.forEach(function(a){ a.muted=muted; }); paintMute(); });
   paintMute();
 
