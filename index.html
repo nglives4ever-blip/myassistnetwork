@@ -159,8 +159,6 @@ form{display:flex;flex-direction:column;gap:14px}
   <video class="walk" id="walk" poster="img/vault.jpg" muted playsinline preload="auto" aria-hidden="true"><source src="video/walkup.mp4" type="video/mp4"><source src="video/walkup.webm" type="video/webm"></video>
   <img class="walk endframe" id="endFrame" src="img/screen.jpg" alt="">
   <video class="walk unlockv" id="unlockVid" playsinline preload="auto" aria-hidden="true"><source src="video/unlock.mp4" type="video/mp4"><source src="video/unlock.webm" type="video/webm"></video>
-  <audio class="walksnd" src="audio/walk-steps.mp3" preload="auto"></audio>
-  <audio class="walksnd" src="audio/walk-room.mp3" preload="auto"></audio>
   <button class="skip" id="skip" type="button" aria-label="Skip to the kiosk screen" hidden></button>
   <div class="shade" id="shade"></div>
   <button class="press" id="press" type="button" hidden>Press to unlock</button>
@@ -333,43 +331,39 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   setTimeout(startDrift,1400);
   img.addEventListener('load',placeHot); window.addEventListener('resize',placeHot); placeHot();
 
-  /* ---- sound: vault atmosphere made live in the browser (no files to load).
-     Optional real recordings: drop audio/steps.mp3, audio/unlock.mp3, audio/door.mp3 next to this page
-     and they replace the generated versions automatically. ---- */
-  var walkSnds=[].slice.call(document.querySelectorAll('.walksnd'));
-  var FILES = { steps:'audio/steps.mp3', unlock:'audio/unlock.mp3', door:'audio/door.mp3' };
-  var ac=null, out=null, master=null, fx=null, verb=null, humF=null, muted=false, bufs={}, bus=null, stepBus=null;
+  /* ---- sound: one audio engine, pre-recorded files only.
+     Everything (hum, footsteps, clicks, ding, unlock) plays through a single AudioContext with
+     large "playback" buffers and is flagged as media playback. Live-synthesized sound and mixing
+     several audio players at once is what stuttered over wireless CarPlay and Bluetooth. ---- */
+  var SND={ hum:'audio/hum-loop.wav', steps:'audio/walk-steps.mp3', room:'audio/walk-room.mp3',
+            press:'audio/press.wav', denied:'audio/denied.wav', ding:'audio/ding.wav', unlock:'audio/unlock.mp3' };
+  var ac=null, out=null, master=null, humF=null, muted=false, bufs={}, raw={}, walkBus=null, humWanted=false, humStarted=false;
   try{ muted = localStorage.getItem('vaultMuted')==='1'; }catch(e){}
-  function noise(sec){ var len=Math.floor(ac.sampleRate*sec), b=ac.createBuffer(1,len,ac.sampleRate), d=b.getChannelData(0); for(var i=0;i<len;i++) d[i]=Math.random()*2-1; return b; }
-  function makeVerb(){ /* a big stone room: generated impulse response */
-    var sec=2.6, len=Math.floor(ac.sampleRate*sec), b=ac.createBuffer(2,len,ac.sampleRate);
-    for(var c=0;c<2;c++){ var d=b.getChannelData(c); for(var i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2); } }
-    var cv=ac.createConvolver(); cv.buffer=b; var g=ac.createGain(); g.gain.value=.32; cv.connect(g); g.connect(out); return cv;
-  }
-  function loadFiles(){ Object.keys(FILES).forEach(function(k){
-    fetch(FILES[k]).then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); })
-      .then(function(a){ return new Promise(function(res,rej){ ac.decodeAudioData(a,res,rej); }); })
-      .then(function(b){ bufs[k]=b; }).catch(function(){}); }); }
-  function playFile(k,vol){ if(!bufs[k]) return false; var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs[k]; g.gain.value=vol||1; s.connect(g); g.connect(out); s.start(); return s; }
-  function startHum(){
-    if(ac) { if(ac.state==='suspended') ac.resume(); return; }
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  Object.keys(SND).forEach(function(k){ raw[k]=fetch(SND[k]).then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }); });
+  function ensureCtx(){
+    if(ac) return;
     try{
-      ac=new (window.AudioContext||window.webkitAudioContext)();
+      var C=window.AudioContext||window.webkitAudioContext;
+      try{ ac=new C({latencyHint:'playback'}); }catch(e){ ac=new C(); }
       out=ac.createGain(); out.gain.value=muted?0:1; out.connect(ac.destination);
       master=ac.createGain(); master.gain.value=0; humF=ac.createBiquadFilter(); humF.type='lowpass'; humF.frequency.value=380;
       master.connect(humF); humF.connect(out);
-      fx=ac.createGain(); fx.gain.value=1; fx.connect(out); verb=makeVerb(); fx.connect(verb);
-      [55,110,165].forEach(function(f,i){ var o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=f; g.gain.value=[.22,.08,.03][i]; o.connect(g); g.connect(master); o.start(); });
-      var len=ac.sampleRate*2, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0), last=0;
-      for(var i=0;i<len;i++){ var w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3.5; }
-      var n=ac.createBufferSource(); n.buffer=buf; n.loop=true; var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500; var ng=ac.createGain(); ng.gain.value=.25;
-      n.connect(lp); lp.connect(ng); ng.connect(master); n.start();
-      /* slow breathing in the air handling */
-      var lfo=ac.createOscillator(), lg=ac.createGain(); lfo.frequency.value=.07; lg.gain.value=.08; lfo.connect(lg); lg.connect(ng.gain); lfo.start();
-      master.gain.linearRampToValueAtTime(.5, ac.currentTime+1.5);
-      loadFiles();
+      Object.keys(raw).forEach(function(k){
+        raw[k].then(function(a){ if(!a) return null; return new Promise(function(res,rej){ ac.decodeAudioData(a.slice(0),res,rej); }); })
+          .then(function(b){ if(b){ bufs[k]=b; if(k==='hum') startLoop(); } }).catch(function(){});
+      });
     }catch(e){ ac=null; }
   }
+  function wake(){ if(ac && ac.state!=='running'){ try{ ac.resume(); }catch(e){} } }
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden && humWanted) wake(); });
+  ensureCtx(); /* created quietly up front so every file is decoded and ready before the first tap */
+  function startLoop(){ if(humStarted || !humWanted || !bufs.hum) return; humStarted=true;
+    var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs.hum; s.loop=true; g.gain.value=.54; s.connect(g); g.connect(master); s.start(); }
+  function startHum(){ ensureCtx(); if(!ac) return; wake();
+    if(!humWanted){ humWanted=true; startLoop(); var t=ac.currentTime; master.gain.setValueAtTime(0,t); master.gain.linearRampToValueAtTime(.5,t+1.5); } }
+  function play(k,vol,dest){ if(!ac || !bufs[k]) return null; wake();
+    var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs[k]; g.gain.value=vol==null?1:vol; s.connect(g); g.connect(dest||out); s.start(); return s; }
   function swell(sec){ /* hum opens up as you approach the kiosk */
     if(!ac) return; var t=ac.currentTime;
     master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.85,t+sec);
@@ -378,49 +372,19 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   function settle(){ if(!ac) return; var t=ac.currentTime;
     master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.5,t+1.2);
     humF.frequency.cancelScheduledValues(t); humF.frequency.setValueAtTime(humF.frequency.value,t); humF.frequency.exponentialRampToValueAtTime(380,t+1.2); }
-  function tone(f,at,dur,vol,type){ var o=ac.createOscillator(), g=ac.createGain(); o.type=type||'sine'; o.frequency.value=f;
-    g.gain.setValueAtTime(0,at); g.gain.linearRampToValueAtTime(vol,at+.008); g.gain.exponentialRampToValueAtTime(.0001,at+dur); o.connect(g); g.connect(bus||fx); o.start(at); o.stop(at+dur+.05); return o; }
-  function burst(at,dur,vol,ftype,freq,q){ var s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain(); s.buffer=noise(dur+.05); f.type=ftype; f.frequency.value=freq; f.Q.value=q||.7;
-    g.gain.setValueAtTime(vol,at); g.gain.exponentialRampToValueAtTime(.0001,at+dur); s.connect(f); f.connect(g); g.connect(bus||fx); s.start(at); }
-  function thump(at,f,vol,dur){ var o=ac.createOscillator(), g=ac.createGain(); o.frequency.setValueAtTime(f*2,at); o.frequency.exponentialRampToValueAtTime(f,at+.05);
-    g.gain.setValueAtTime(vol,at); g.gain.exponentialRampToValueAtTime(.0001,at+dur); o.connect(g); g.connect(bus||fx); o.start(at); o.stop(at+dur+.05); }
-  function step(at,vol){ thump(at,62,vol*.5,.18); burst(at,.06,vol*.5,'bandpass',2600,1.4); burst(at+.012,.04,vol*.25,'highpass',5000); }
-  function footsteps(sec){ /* leather on marble, slowing as you arrive */
-    if(muted) return;
-    /* your Veo walk-up audio, synced to the clip */
-    if(walkSnds.length && walkSnds[0].canPlayType('audio/mpeg')){ walkSnds.forEach(function(a){ try{ a.currentTime=0; var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){} }); return; }
-    if(!ac) return; if(playFile('steps',.9)) return;
-    stepBus=bus=ac.createGain(); bus.connect(fx);
-    var t=ac.currentTime+.25, gap=.56, end=ac.currentTime+sec-.6, v=.55;
-    while(t<end){ step(t,v); t+=gap; if(t>end-1.6){ gap+=.06; v*=.9; } }
-    bus=null;
-  }
-  function stopSteps(){ walkSnds.forEach(function(a){ try{ a.pause(); }catch(e){} }); if(!stepBus) return; var t=ac.currentTime; stepBus.gain.setValueAtTime(stepBus.gain.value,t); stepBus.gain.linearRampToValueAtTime(0,t+.25); stepBus=null; }
-  function sWake(){ if(!ac||muted) return; var t=ac.currentTime;
-    var o=ac.createOscillator(), g=ac.createGain(), f=ac.createBiquadFilter(); o.type='sawtooth'; o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(440,t+.6);
-    f.type='lowpass'; f.frequency.setValueAtTime(300,t); f.frequency.exponentialRampToValueAtTime(2400,t+.6);
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.05,t+.3); g.gain.exponentialRampToValueAtTime(.0001,t+1.1);
-    o.connect(f); f.connect(g); g.connect(fx); o.start(t); o.stop(t+1.2);
-    tone(880,t+.45,1.4,.05); tone(1318.5,t+.55,1.6,.035); }
-  function sPress(){ if(!ac||muted) return; var t=ac.currentTime; thump(t,90,.35,.12); burst(t,.03,.18,'bandpass',3200,2); tone(1046.5,t+.02,.5,.05); }
-  function sDenied(){ if(!ac||muted) return; var t=ac.currentTime;
-    [0,.18].forEach(function(d){ var o=ac.createOscillator(), o2=ac.createOscillator(), f=ac.createBiquadFilter(), g=ac.createGain();
-      o.type=o2.type='square'; o.frequency.value=98; o2.frequency.value=103.5; f.type='lowpass'; f.frequency.value=700;
-      g.gain.setValueAtTime(0,t+d); g.gain.linearRampToValueAtTime(.07,t+d+.01); g.gain.exponentialRampToValueAtTime(.0001,t+d+.16);
-      o.connect(f); o2.connect(f); f.connect(g); g.connect(fx); o.start(t+d); o2.start(t+d); o.stop(t+d+.2); o2.stop(t+d+.2); }); }
-  function bell(f,at,vol){ [1,2.76,5.4].forEach(function(m,i){ tone(f*m,at,[2.2,1.2,.6][i],vol*[1,.35,.12][i]); }); }
-  function sGranted(){ if(!ac||muted) return; var t=ac.currentTime;
-    bell(783.99,t,.09); bell(1174.66,t+.16,.08);
-    if(playFile('unlock',1)) return;
-    thump(t+.45,48,.6,.5); burst(t+.45,.08,.3,'bandpass',1800,3); burst(t+.62,.06,.25,'bandpass',1400,3);
-    burst(t+.8,1.4,.12,'highpass',2800); }
-  function sDoor(){ if(!ac||muted) return; var t=ac.currentTime; if(playFile('door',1)) return;
-    for(var i=0;i<4;i++){ thump(t+i*.16,40+i*4,.45,.35); burst(t+i*.16,.05,.18,'bandpass',1500,4); }
-    var s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain(); s.buffer=noise(3); f.type='lowpass'; f.frequency.value=120;
-    g.gain.setValueAtTime(0,t+.6); g.gain.linearRampToValueAtTime(.5,t+1.2); g.gain.exponentialRampToValueAtTime(.0001,t+3.2); s.connect(f); f.connect(g); g.connect(fx); s.start(t+.6); }
+  function footsteps(){ /* your Veo walk-up audio (steps + room layers), synced to the clip */
+    if(!ac) return; stopSteps(); walkBus=ac.createGain(); walkBus.connect(out); play('steps',1,walkBus); play('room',1,walkBus); }
+  function stopSteps(){ if(!walkBus) return; var b=walkBus, t=ac.currentTime; walkBus=null;
+    b.gain.setValueAtTime(b.gain.value,t); b.gain.linearRampToValueAtTime(0,t+.25); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },400); }
+  function sPress(){ play('press',1); }
+  function sDenied(){ play('denied',1); }
+  function sDing(){ play('ding',1); }
+  function sUnlock(){ play('unlock',1); }
+  function sGranted(){ sDing(); }
+  function sDoor(){}
   var muteBtn=document.getElementById('muteBtn');
   function paintMute(){ /* SVG icons ignore .hidden, so toggle the attribute itself */ document.getElementById('icoOn').toggleAttribute('hidden',muted); document.getElementById('icoOff').toggleAttribute('hidden',!muted); muteBtn.classList.toggle('is-muted',muted); muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
-  muteBtn.addEventListener('click',function(){ muted=!muted; try{ localStorage.setItem('vaultMuted',muted?'1':'0'); }catch(e){} if(!ac&&!muted) startHum(); if(out) out.gain.value=muted?0:1; walkSnds.forEach(function(a){ a.muted=muted; }); paintMute(); });
+  muteBtn.addEventListener('click',function(){ muted=!muted; try{ localStorage.setItem('vaultMuted',muted?'1':'0'); }catch(e){} if(!muted) startHum(); if(out) out.gain.value=muted?0:1; paintMute(); });
   paintMute();
 
   /* ---- the walk-up ---- */
@@ -447,10 +411,10 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   var unlockVid=document.getElementById('unlockVid'), unlocked=false;
   function finishUnlock(){ if(unlocked) return; unlocked=true; showHub(); }
   press.addEventListener('click',function(){
-    press.hidden=true; back.hidden=true; sPress(); if(ac){ bell(783.99,ac.currentTime,.09); bell(1174.66,ac.currentTime+.16,.08); }
-    unlocked=false; vault.classList.add('unlocking'); unlockVid.muted=muted;
+    press.hidden=true; back.hidden=true; sPress(); sDing();
+    unlocked=false; vault.classList.add('unlocking'); unlockVid.muted=true;
     if(reduce){ finishUnlock(); return; }
-    try{ unlockVid.currentTime=0; var pr=unlockVid.play(); if(pr&&pr.catch) pr.catch(function(){ vault.classList.add('opening'); setTimeout(finishUnlock,900); }); }
+    try{ unlockVid.currentTime=0; sUnlock(); var pr=unlockVid.play(); if(pr&&pr.catch) pr.catch(function(){ vault.classList.add('opening'); setTimeout(finishUnlock,900); }); }
     catch(e){ finishUnlock(); }
     setTimeout(finishUnlock,9500); /* safety net */
   });
