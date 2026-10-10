@@ -279,7 +279,10 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
       if(dragged){ var now=performance.now(); vel=(e.clientX-lx)/Math.max(1,now-lt); lx=e.clientX; lt=now; setPan(sp+dx); }
     });
     function up(){ if(!down) return; down=false;
-      if(dragged){ var v=vel*16; (function step(){ v*=0.92; if(Math.abs(v)<0.3){ raf=0; return; } setPan(panX+v); raf=requestAnimationFrame(step); })(); } }
+      if(dragged){ /* let go: drift slowly back to facing the door */
+        var from=panX, t0=performance.now(), dur=1400;
+        (function step(now){ var t=Math.min(1,(now-t0)/dur), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+          setPan(from*(1-e)); if(t<1 && canPan()){ raf=requestAnimationFrame(step); } else { raf=0; } })(t0); } }
     window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up);
     /* a drag that ends on the kiosk is not a tap */
     hot.addEventListener('click',function(e){ if(dragged){ e.stopImmediatePropagation(); e.preventDefault(); dragged=false; } },true);
