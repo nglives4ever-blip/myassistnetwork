@@ -12,6 +12,10 @@ Owned by 2451842 Alberta Inc. MyAssist is TM (filed, not registered), never (R).
 - `yodi` (CNAME) -> Vercel, for YODI. Separate app, separate repo (nglives4ever-blip/yodi). Never delete or change it.
 - `canba` subdomain -> Canba tracker. Never delete or change it.
 
+## Look-around
+- Phones: drag pans the wide shot left/right (natural direction), release drifts back to center; the room auto-drifts gently with a "Take a look around" hint until touched, and again after idle.
+- Future 360 room (planned, 30 ft ceiling): up/down is INVERTED (drag down looks up, drag up looks down). Left/right stays natural, never inverted.
+
 ## Rules
 - YODI is not built in this repo.
 - Any login or database for this site uses the Supabase project "myassist-network", never "myassist" (that is the Autolink MyAssist app).
