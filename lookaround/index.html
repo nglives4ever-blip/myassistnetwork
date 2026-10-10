@@ -12,8 +12,8 @@
   [hidden]{display:none!important}
   html,body{margin:0;height:100%;background:var(--ink);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--cream);
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
-  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:url(cursor-open.svg) 16 16,grab}
-  canvas.grabbing{cursor:url(cursor-fist.svg) 16 16,grabbing}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:url(hand-open.png) 20 20,grab;cursor:-webkit-image-set(url(hand-open.png) 1x,url(hand-open@2x.png) 2x) 20 20,grab;cursor:image-set(url(hand-open.png) 1x,url(hand-open@2x.png) 2x) 20 20,grab}
+  canvas.grabbing{cursor:url(hand-fist.png) 20 20,grabbing;cursor:-webkit-image-set(url(hand-fist.png) 1x,url(hand-fist@2x.png) 2x) 20 20,grabbing;cursor:image-set(url(hand-fist.png) 1x,url(hand-fist@2x.png) 2x) 20 20,grabbing}
   canvas.playing{cursor:default}
   .hint{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;
     font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.9);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;transition:opacity .6s ease;white-space:nowrap;text-align:center}
@@ -72,12 +72,39 @@
     if(lobbyA>0 && LOBBY_HD.complete && LOBBY_HD.naturalWidth){ /* the sharp lobby still, lined up with the video frame and settling into place */
       var r=1-lobbyK, sc=1+0.035*r, u=w/1280, lw=w*sc, lh=lw*LOBBY_HD.naturalHeight/LOBBY_HD.naturalWidth;
       ctx.globalAlpha=lobbyA; ctx.drawImage(LOBBY_HD,(cw-w)/2+11*r*u,(ch-hh)/2-4*r*u,lw,lh); ctx.globalAlpha=1; }
+    if(gA>0.02) applyGlitch(gA);
   }); }
+  /* ---- live digital glitch, drawn over the picture so it can carry the camera all the way into the HD lobby ---- */
+  var gA=0, gc=document.createElement('canvas'), gx=gc.getContext('2d'), rc=document.createElement('canvas'), rx=rc.getContext('2d');
+  function tint(dst,dx,src,col){ dst.canvas.width=src.width; dst.canvas.height=src.height; dx.globalCompositeOperation='source-over'; dx.drawImage(src,0,0);
+    dx.globalCompositeOperation='multiply'; dx.fillStyle=col; dx.fillRect(0,0,src.width,src.height); dx.globalCompositeOperation='source-over'; }
+  function applyGlitch(a){
+    var W=cv.width, Ht=cv.height, R=Math.random;
+    gc.width=W; gc.height=Ht; gx.drawImage(cv,0,0);
+    var sh=Math.round((4+26*a)*(W/1280));
+    /* colour split: red and cyan copies pulled apart */
+    ctx.clearRect(0,0,W,Ht);
+    tint(rx,rx,gc,'#ff0000'); ctx.drawImage(rc,sh,0);
+    ctx.globalCompositeOperation='lighter';
+    tint(rx,rx,gc,'#00ffff'); ctx.drawImage(rc,-sh,0);
+    ctx.globalCompositeOperation='source-over';
+    /* tearing slices */
+    var n=Math.round(2+12*a);
+    for(var i=0;i<n;i++){ var y=R()*Ht, hh2=(6+R()*120*a)*(Ht/720), dx=(R()<.5?-1:1)*(20+R()*240*a)*(W/1280);
+      ctx.drawImage(gc,0,y,W,hh2,dx,y,W,hh2); }
+    /* scanlines and the odd flicker */
+    ctx.fillStyle='rgba(0,0,0,'+(0.10*a)+')'; for(var y2=0;y2<Ht;y2+=3*Math.max(1,Math.round(Ht/720))) ctx.fillRect(0,y2,W,1);
+    if(R()<0.12*a){ ctx.fillStyle='rgba(255,255,255,'+(0.18*a)+')'; ctx.fillRect(0,0,W,Ht); }
+  }
+  function glitchOut(ms){ /* the glitch fades out exactly as the HD lobby finishes settling */
+    var a0=gA, t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/ms); gA=a0*Math.pow(1-t,1.6)*(0.75+0.25*Math.random()); if(t>=1) gA=0; draw(); if(t<1) requestAnimationFrame(step); })(t0);
+  }
   /* ---- the lobby rests on the high-definition still instead of the softer video frame ---- */
   var LOBBY_HD=new Image(); LOBBY_HD.src='lobby.jpg';
   var lobbyA=0, lobbyK=0, lobbyRaf=0;
-  function lobbyIn(){ cancelAnimationFrame(lobbyRaf); var a0=lobbyA, t0=performance.now();
-    (function step(now){ var t=Math.min(1,(now-t0)/700), e=t*t*(3-2*t); lobbyA=a0+(1-a0)*e; lobbyK=e; draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
+  function lobbyIn(ms){ ms=ms||700; cancelAnimationFrame(lobbyRaf); var a0=lobbyA, t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/ms), e=t*t*(3-2*t); lobbyA=a0+(1-a0)*e; lobbyK=e; draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
   function lobbyOut(){ cancelAnimationFrame(lobbyRaf); var a0=lobbyA, t0=performance.now(); if(a0<=0) return;
     (function step(now){ var t=Math.min(1,(now-t0)/220); lobbyA=a0*(1-t); draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
   addEventListener('resize',fit); fit();
@@ -110,9 +137,11 @@
     (function step(now){
       var n=from+d*(now-t0)/1000*PLAY_FPS;
       if(!glitched && ((d>0&&n>=GLITCH_LO)||(d<0&&n<=GLITCH_HI))){ glitched=true; playGlitch(); }
+      if(glitch && d>0 && n>=GLITCH_LO+4) gA=Math.min(0.85,(n-(GLITCH_LO+4))/4*0.85)*(0.8+0.2*Math.random());
       if((d>0&&n>=to)||(d<0&&n<=to)){ h=to; draw();
         if(loopHome){ fadeHome(); return; }
-        stop=toStop; off=0; playing=false; cv.classList.remove('playing'); place(); if(stop===1) lobbyIn(); return; }
+        stop=toStop; off=0; playing=false; cv.classList.remove('playing'); place();
+        if(stop===1){ if(glitch && d>0){ lobbyIn(1100); glitchOut(1100); } else lobbyIn(); } return; }
       h=n; draw(); raf=requestAnimationFrame(step); })(t0);
   }
   function fadeHome(){ /* the far side of the turn is a slightly different vault, so dissolve into the real one */
