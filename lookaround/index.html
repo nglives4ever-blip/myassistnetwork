@@ -15,6 +15,8 @@
   canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:url(hand-open.png) 20 20,grab;cursor:-webkit-image-set(url(hand-open.png) 1x,url(hand-open@2x.png) 2x) 20 20,grab;cursor:image-set(url(hand-open.png) 1x,url(hand-open@2x.png) 2x) 20 20,grab}
   canvas.grabbing{cursor:url(hand-fist.png) 20 20,grabbing;cursor:-webkit-image-set(url(hand-fist.png) 1x,url(hand-fist@2x.png) 2x) 20 20,grabbing;cursor:image-set(url(hand-fist.png) 1x,url(hand-fist@2x.png) 2x) 20 20,grabbing}
   canvas.playing{cursor:default}
+  canvas.poster{cursor:pointer}
+  canvas.focused{cursor:zoom-out}
   .hint{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;
     font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.9);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;transition:opacity .6s ease;white-space:nowrap;text-align:center}
   .hint small{font-size:10px;letter-spacing:1.6px;opacity:.75;font-weight:600}
@@ -84,7 +86,9 @@
   function draw(){ if(pending) return; pending=true; requestAnimationFrame(function(){ pending=false;
     var i0=Math.floor(h), f=h-i0, A=H[i0], B=H[Math.min(H_COUNT-1,i0+1)], di=D[i0]||0;
     var cw=cv.width, ch=cv.height, k=kc(), w=1280*k, hh=720*k, x0=(cw-w)/2+SHIFT0*k, y0=(ch-hh)/2;
-    var sz=zoom*OVER; ctx.save(); ctx.translate(cw/2,ch/2); ctx.scale(sz,sz); ctx.translate(-cw/2,-ch/2);
+    var sz=zoom*OVER, fcx=cw/2, fcy=ch/2;
+    if(ft>0.001 && focus){ var c=focusCenter(k,sz); sz*=1+(c.z-1)*ft; fcx=cw/2+(c.dx-cw/2)*ft; fcy=ch/2+(c.dy-ch/2)*ft; }
+    ctx.save(); ctx.translate(cw/2,ch/2); ctx.scale(sz,sz); ctx.translate(-fcx,-fcy);
     if(ready(A) && (f<0.002 || ready(B))){
       ctx.drawImage(A,x0-f*di*k,y0,w,hh);                                   /* this frame slides along with your hand */
       if(f>0.3){ var fa=Math.min(1,(f-0.3)/0.4); ctx.globalAlpha=fa*fa*(3-2*fa); ctx.drawImage(B,x0+(1-f)*di*k,y0,w,hh); ctx.globalAlpha=1; }   /* and the next one cross-fades in, lined up with it, in the middle of the gap so there is no ghosting */
@@ -96,6 +100,9 @@
       var hs=(stop===1 && !playing)?-off*k:0;
       ctx.save(); ctx.translate(x0+hs,y0); ctx.scale(k,k); ctx.transform(HD_M[0],HD_M[3],HD_M[1],HD_M[4],HD_M[2],HD_M[5]);
       ctx.globalAlpha=la; ctx.drawImage(LOBBY_HD,0,0,1280,1280*LOBBY_HD.naturalHeight/LOBBY_HD.naturalWidth); ctx.restore(); }
+    if(hover && !focus && !down && !playing){ var hq=posterQuad(hover); if(hq){ /* a soft gold edge says the poster can be clicked */
+      ctx.save(); ctx.beginPath(); for(var pi=0;pi<hq.length;pi+=2){ var px=x0+hq[pi]*k, py=y0+hq[pi+1]*k; if(pi) ctx.lineTo(px,py); else ctx.moveTo(px,py); } ctx.closePath();
+      ctx.strokeStyle='rgba(240,196,110,.85)'; ctx.lineWidth=2.5*k; ctx.shadowColor='rgba(240,196,110,.9)'; ctx.shadowBlur=18*k; ctx.stroke(); ctx.restore(); } }
     ctx.restore();
     if(gA>0.02) applyGlitch(gA);
   }); }
@@ -189,33 +196,71 @@
       stop=0; off=0; lastOff=0; playing=false; cv.classList.remove('playing'); place(); })(t0);
   }
   var vel=0, lastMoveT=0, idleTimer=0;
+
+  /* ---- clickable posters in the lobby ----
+     Each poster's outline was tracked through the footage (frames 78 to 118, in source pixels), so the click area
+     follows the poster wherever the camera is, even mid-turn. Click one and the camera turns and pushes in on it;
+     click again to step back. (Placeholder until the poster videos are ready.) */
+  var P0=78, POSTERS={
+    left:[[171,7,240,5,283,81,260,328,139,272],[161,4,231,2,275,79,251,327,128,270],[150,0,220,-2,265,76,240,326,115,267],[137,-5,208,-6,253,73,227,324,101,265],[122,-10,195,-10,240,70,213,322,85,262],[106,-15,180,-15,226,66,198,320,67,259],[89,-22,164,-20,210,62,181,318,48,255],[70,-30,147,-27,194,56,162,315,27,250],[49,-38,129,-34,176,51,142,312,3,246],[27,-47,109,-42,157,45,122,308,-21,241],[2,-57,87,-50,136,38,99,304,-48,235],[-23,-67,65,-60,115,31,75,301,-77,229],[-52,-80,39,-71,91,22,49,296,-108,223],[-83,-93,12,-84,66,13,21,290,-139,214],[-89,-74,-14,-81,38,1,-13,321,-152,196],[-122,-89,-44,-95,10,-10,-45,316,-190,186],[-158,-104,-76,-108,-21,-21,-79,310,-231,177],[-194,-119,-108,-122,-51,-32,-113,305,-271,168],[-231,-135,-141,-137,-82,-44,-148,299,-313,157],[-270,-153,-176,-153,-114,-57,-185,293,-359,146],[-312,-173,-212,-170,-148,-71,-223,287,-406,134],[-354,-192,-250,-188,-183,-85,-262,280,-455,122],[-402,-217,-290,-210,-220,-102,-304,272,-511,105],[-443,-237,-326,-227,-253,-116,-342,265,-558,93],[-492,-262,-368,-249,-290,-133,-386,257,-617,76],[-549,-296,-414,-278,-332,-155,-433,247,-684,55],[-614,-333,-467,-310,-378,-179,-488,236,-762,31],[-668,-358,-513,-331,-420,-196,-536,228,-826,15],[-732,-387,-567,-356,-469,-216,-594,219,-904,-4],[-770,-390,-604,-361,-506,-221,-636,216,-946,-5],[-885,-454,-696,-414,-586,-261,-734,197,-1093,-48],[-988,-502,-780,-454,-660,-291,-824,184,-1222,-79],[-1063,-519,-847,-472,-722,-306,-889,182,-1300,-84],[-1191,-578,-945,-515,-812,-340,-1023,157,-1499,-139],[-1480,-763,-1155,-659,-985,-446,-1251,104,-1905,-274],[-1818,-962,-1394,-808,-1179,-553,-1515,48,-2401,-427],[-1321,-621,-1119,-582,-950,-390,-943,96,-1327,-154],[-1535,-737,-1294,-680,-1096,-463,-1089,62,-1543,-222],[-1802,-872,-1507,-794,-1274,-547,-1275,20,-1823,-308],[-2133,-1055,-1763,-942,-1480,-653,-1486,-30,-2166,-418],[-2641,-1345,-2137,-1167,-1770,-808,-1782,-104,-2692,-594]],
+    freedom:[[1219,-10,1348,-124,1408,230,1261,285],[1208,-8,1340,-128,1397,234,1249,285],[1196,-4,1324,-118,1378,233,1236,288],[1183,3,1308,-110,1363,236,1221,291],[1169,8,1292,-103,1344,239,1205,294],[1154,13,1274,-95,1323,243,1188,297],[1138,17,1256,-86,1302,246,1170,300],[1121,22,1237,-79,1281,250,1152,302],[1104,27,1218,-72,1259,253,1133,304],[1086,31,1198,-65,1237,257,1113,306],[1068,37,1178,-57,1214,261,1093,309],[1049,41,1157,-49,1191,264,1073,311],[1030,46,1136,-42,1168,268,1052,313],[1010,51,1115,-35,1144,272,1031,315],[990,55,1093,-28,1120,274,1009,317],[970,58,1072,-22,1097,277,987,319],[950,62,1050,-16,1073,280,965,320],[930,65,1029,-11,1050,282,945,322],[911,68,1009,-6,1028,284,924,323],[893,70,990,-2,1007,286,904,324],[875,72,971,2,987,288,885,324],[857,74,953,6,967,289,866,325],[840,75,935,8,948,290,848,325],[824,76,918,10,930,291,831,325],[808,77,902,13,912,292,814,325],[793,77,886,15,895,292,798,325],[777,78,870,17,878,292,781,324],[760,79,853,18,860,293,763,324],[742,79,835,20,841,294,744,324],[723,80,816,22,820,294,724,324],[703,80,795,24,798,295,703,324],[681,80,773,26,775,296,680,324],[658,80,750,27,750,296,655,324],[634,80,726,28,725,297,630,323],[608,80,700,29,698,297,603,323],[582,79,674,30,671,297,575,322],[554,77,648,30,642,297,546,321],[526,75,620,30,613,296,517,320],[497,72,592,29,584,296,486,318],[467,70,563,27,554,295,455,316],[437,65,534,25,522,293,423,314]]
+  };
+  var hover=null, focus=null, ft=0, ftRaf=0;
+  function posterQuad(name){ if(stop!==1 && !focus) return null; var q=POSTERS[name], i0=Math.floor(h), f=h-i0, a=q[i0-P0], b=q[i0+1-P0]||a; if(!a) return null;
+    var r=[]; for(var j=0;j<a.length;j++) r.push(a[j]+(b[j]-a[j])*f); return r; }
+  function toSource(cx,cy){ var dpr=Math.min(window.devicePixelRatio||1,2), cw=cv.width, ch=cv.height, k=kc(), x0=(cw-1280*k)/2+SHIFT0*k, y0=(ch-720*k)/2, sz=zoom*OVER;
+    return { x:((cx*dpr-cw/2)/sz+cw/2-x0)/k, y:((cy*dpr-ch/2)/sz+ch/2-y0)/k }; }
+  function inPoly(q,x,y){ var c=false; for(var i=0,j=q.length-2;i<q.length;j=i,i+=2){ var xi=q[i],yi=q[i+1],xj=q[j],yj=q[j+1];
+    if(((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; }
+  function posterAt(cx,cy){ if(stop!==1 || playing) return null; var p=toSource(cx,cy);
+    for(var n in POSTERS){ var q=posterQuad(n); if(q && inPoly(q,p.x,p.y)) return n; } return null; }
+  function focusCenter(k,sz){ /* where the camera centres and how far it pushes in, kept inside the picture */
+    var q=posterQuad(focus)||[640,360,640,360], minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+    for(var i=0;i<q.length;i+=2){ minx=Math.min(minx,q[i]); maxx=Math.max(maxx,q[i]); miny=Math.min(miny,q[i+1]); maxy=Math.max(maxy,q[i+1]); }
+    miny=Math.max(miny,0); maxy=Math.min(maxy,720);
+    var z=Math.min(1.9, 0.82*720/Math.max(60,maxy-miny)/(zoom*OVER)), Z=zoom*OVER*z, cw=cv.width, ch=cv.height;
+    var hw=cw/2/(Z*k), hh=ch/2/(Z*k), X=Math.max(hw-SHIFT0,Math.min(1280-hw-SHIFT0,(minx+maxx)/2)), Y=Math.max(hh,Math.min(720-hh,(miny+maxy)/2));
+    var x0=(cw-1280*k)/2+SHIFT0*k, y0=(ch-720*k)/2; return { z:z, dx:x0+X*k, dy:y0+Y*k }; }
+  function ftTo(target,ms,done){ cancelAnimationFrame(ftRaf); var f0=ft, t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/ms), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; ft=f0+(target-f0)*e; draw(); if(t<1) ftRaf=requestAnimationFrame(step); else if(done) done(); })(t0); }
+  function focusPoster(name){
+    clearTimeout(idleTimer); cancelAnimationFrame(raf); focus=name; hover=null; cv.classList.add('focused');
+    /* turn so the poster sits as close to the middle as the lobby allows */
+    var q=POSTERS[name], best=LOBBY, bd=1e9; for(var i=P0;i<P0+q.length;i++){ var c=(q[i-P0][0]+q[i-P0][4])/2, d=Math.abs(c-640); if(d<bd){ bd=d; best=i; } }
+    var L=LIMIT[1], target=Math.max(L.back+80,Math.min(L.fwd-80,S[best]-S[LOBBY])), from=off, t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/900), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; off=from+(target-from)*e; place(); if(t<1 && focus) raf=requestAnimationFrame(step); })(t0);
+    ftTo(1,1100);
+    hint.textContent='Click anywhere to step back'; hint.classList.remove('gone');
+  }
+  function unfocus(){ hint.classList.add('gone'); ftTo(0,700,function(){ focus=null; cv.classList.remove('focused'); armIdle(); }); }
   function glide(){ /* let go: keep the momentum for a moment, then hold where you are */
     var v=vel*16; if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); return; }
     (function step(){ if(playing||down) return; if(Math.abs(v)>0.4){ setOff(off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
   }
   /* let go and leave it: a couple of seconds later the camera eases back to where it rests (the vault, or the sharp lobby still).
-     Once the lobby has been sitting still for a while, it glitches back home to the vault. */
-  var IDLE_RETURN=2000, IDLE_LOBBY=6000;
+     The lobby stays put until they turn back to the vault themselves. */
+  var IDLE_RETURN=2000;
   function armIdle(){ clearTimeout(idleTimer); var turned=Math.abs(off)>0.5;
     idleTimer=setTimeout(function(){ if(down||playing) return;
-      if(turned) settle(); else if(stop===1) goHome(); }, turned?IDLE_RETURN:IDLE_LOBBY); }
-  function goHome(){ /* quick glitch cut from the lobby back to the vault */
-    playing=true; cancelAnimationFrame(raf); cv.classList.add('playing'); playGlitch(0.8); zoomTo(1,500);
-    var t0=performance.now(), swapped=false;
-    (function step(now){ var t=(now-t0)/260; gA=Math.min(0.8,t*0.8)*(0.8+0.2*Math.random());
-      if(t<1){ draw(); raf=requestAnimationFrame(step); return; }
-      if(!swapped){ swapped=true; cancelAnimationFrame(lobbyRaf); lobbyA=0; stop=0; off=0; lastOff=0; homeBlend=0; h=0; playing=false; cv.classList.remove('playing'); place(); glitchOut(480); } })(t0);
-  }
+      if(turned) settle(); }, IDLE_RETURN); }
   function settle(){ /* ease back to the stop */
     clearTimeout(idleTimer); zoomTo(1,900); var from=off, t0=performance.now(); if(Math.abs(from)<.5){ off=0; place(); if(stop===1){ if(lobbyA<1) lobbyIn(); armIdle(); } return; }
     (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3);
       off=from*(1-e); place(); if(t<1) raf=requestAnimationFrame(step); else if(stop===1){ if(lobbyA<1) lobbyIn(); armIdle(); } })(t0);
   }
-  cv.addEventListener('pointerdown',function(e){ if(playing) return; clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
-  cv.addEventListener('pointermove',function(e){ if(!down||playing) return; var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
-  function up(){ if(!down) return; down=false; cv.classList.remove('grabbing'); if(!playing){ if(performance.now()-lastMoveT>120) vel=0; glide(); } }
+  var downX=0, downY=0, downT=0, downPoster=null;
+  cv.addEventListener('pointerdown',function(e){ if(playing) return;
+    if(focus){ if(ft>0.5) unfocus(); return; }
+    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointermove',function(e){
+    if(!down){ var hv=focus?null:posterAt(e.clientX,e.clientY); if(hv!==hover){ hover=hv; cv.classList.toggle('poster',!!hv); draw(); } return; }
+    if(playing) return; var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+  function up(e){ if(!down) return; down=false; cv.classList.remove('grabbing');
+    var click=e && Math.abs(e.clientX-downX)<6 && Math.abs(e.clientY-downY)<6 && performance.now()-downT<450;
+    if(click && downPoster && !playing){ focusPoster(downPoster); return; }
+    if(!playing){ if(performance.now()-lastMoveT>120) vel=0; glide(); } }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
-  addEventListener('keydown',function(e){ if(playing) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
+  addEventListener('keydown',function(e){ if(playing||focus) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
 
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
   var ac=null, out=null, buf=null, started=false, muted=false, muteBtn=document.getElementById('mute');
