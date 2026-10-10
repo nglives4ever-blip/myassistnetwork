@@ -142,16 +142,18 @@
     else if(stop===0){ from=END+off; to=LOBBY; toStop=1; }
     else if(dir>0){ to=END; toStop=0; loopHome=true; }
     else { to=0; glitch=true; toStop=0; }
-    var d=to>from?1:-1, t0=performance.now(), tPrev=t0, pos=from, glitched=!glitch;
-    zoomTo(1,900);
+    var d=to>from?1:-1, t0=performance.now(), tPrev=t0, pos=from, glitched=!glitch, leanedOut=false, arriveGlitch=(toStop===1 && !glitch), arriveStarted=false;
     (function step(now){
       var el=(now-tPrev)/1000; tPrev=now; var fps=(glitch && pos>=GLITCH_LO-2 && pos<=LOBBY)?24:PLAY_FPS; pos+=d*el*fps; var n=pos;
       if(!glitched && ((d>0&&n>=GLITCH_LO)||(d<0&&n<=GLITCH_HI))){ glitched=true; playGlitch(); }
       if(glitch && d>0 && n>=GLITCH_LO+7) gA=Math.min(0.7,(n-(GLITCH_LO+7))/4*0.7)*(0.8+0.2*Math.random());
+      /* the left-side route into the lobby gets its own glitch as it lands */
+      if(arriveGlitch && Math.abs(to-n)<=7){ if(!arriveStarted){ arriveStarted=true; playGlitch(0.7); } gA=Math.min(0.6,(7-Math.abs(to-n))/5*0.6)*(0.8+0.2*Math.random()); }
+      if(!leanedOut && ((glitch && d>0 && n>=GLITCH_LO) || (!(glitch && d>0) && Math.abs(to-n)<=8))){ leanedOut=true; zoomTo(1, (glitch&&d>0)?520:650); }
       if((d>0&&n>=to)||(d<0&&n<=to)){ h=to; draw();
         if(loopHome){ fadeHome(); return; }
         stop=toStop; off=0; playing=false; cv.classList.remove('playing'); place();
-        if(stop===1){ if(glitch && d>0){ lobbyIn(520); glitchOut(480); } else { glitchPulse(0.35,420); lobbyIn(560); } } return; }
+        if(stop===1){ lobbyIn(520); glitchOut(480); } return; }
       h=n; draw(); raf=requestAnimationFrame(step); })(t0);
   }
   function fadeHome(){ /* the far side of the turn is a slightly different vault, so dissolve into the real one */
@@ -176,7 +178,7 @@
   try{ muted=localStorage.getItem('vaultMuted')==='1'; }catch(_){}
   try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(_){}
   var glitchRaw=fetch('../audio/glitch.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), glitchBuf=null;
-  function playGlitch(){ if(!ac||muted) return; function go(){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=glitchBuf; g.gain.value=1.3; s.connect(g); g.connect(out); s.start(); }
+  function playGlitch(vol){ if(!ac||muted) return; function go(){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=glitchBuf; g.gain.value=1.3*(vol||1); s.connect(g); g.connect(out); s.start(); }
     if(glitchBuf) go(); else glitchRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ glitchBuf=b; go(); }); }); }
   var raw=fetch('../audio/hum-loop.wav').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
   function startSound(){
