@@ -1,0 +1,410 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+<title>MyAssist Network</title>
+<link rel="icon" type="image/png" href="img/myassist-icon.png">
+<link rel="apple-touch-icon" href="img/myassist-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* MyAssist Network: private entrance, then the project hub. Phone-first, widens on desktop.
+   Colours come from the MyAssist wordmark: navy ASSIST, blue MY, on a clean light ground. */
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --line:#DDE1EA;
+  --navy:#121A33; --blue:#2457C5; --blue-tint:#E8EEFB;
+  --muted:#5D6577; --danger:#B4382B;
+  --font:'Figtree',ui-rounded,system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--navy);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:520px;min-height:100%;margin:0 auto;padding-inline:20px;padding-block:36px 24px;display:flex;flex-direction:column}
+img{max-width:100%;display:block}
+
+/* entrance */
+.gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center}
+.brand{display:flex;flex-direction:column;align-items:center;gap:18px}
+.app-icon{width:84px;height:84px;border-radius:22%;box-shadow:0 10px 30px rgba(18,26,51,.18)}
+.wordmark{width:min(260px,72vw);height:auto}
+.hero-logo{width:min(210px,58vw);height:auto;filter:drop-shadow(0 16px 28px rgba(18,26,51,.22))}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:2.6px;text-transform:uppercase;color:var(--muted)}
+.card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 2px 16px rgba(18,26,51,.05)}
+form{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px;text-align:left}
+.field label{font-size:13px;font-weight:600;color:var(--navy)}
+.field input{height:50px;border-radius:14px;border:1px solid var(--line);background:var(--ground);color:var(--navy);padding:0 16px;font:inherit;font-size:16px}
+.field input:focus{outline:2px solid var(--blue);outline-offset:1px;background:#fff}
+.enter{height:52px;border-radius:14px;border:0;background:var(--navy);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer;margin-top:2px}
+.enter:hover{background:#1c2748}
+.enter:disabled{opacity:.55;cursor:default}
+.enter:focus-visible,.out:focus-visible,.peek:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.err{min-height:20px;margin:0;font-size:14px;color:var(--danger)}
+.peek{background:none;border:0;font:inherit;font-size:13px;color:var(--blue);text-decoration:underline;cursor:pointer;padding:4px}
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.foot .pow{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.foot .pow b{color:var(--navy)}
+.foot .tm{font-size:11px;line-height:1.6;color:#8A90A0;margin:0}
+
+/* hub */
+.hub{flex:1;display:flex;flex-direction:column;gap:22px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mini{display:flex;align-items:center;gap:10px;min-width:0}
+.mini .app-icon{width:40px;height:auto;border-radius:0;box-shadow:none}
+.mini .wordmark{width:128px}
+.out{display:flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:600;color:var(--navy);background:var(--surface);border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;flex:none}
+.hello h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.2px}
+.hello p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.tiles{display:grid;gap:12px}
+.tile{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+.tile:hover{border-color:#C3CADB;box-shadow:0 6px 20px rgba(18,26,51,.07)}
+.tile:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tx b{font-size:16px}
+.tx span{font-size:13px;color:var(--muted)}
+.pill{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.pill.live{background:#E3F4EA;color:#1E6B40}
+.pill.build{background:var(--blue-tint);color:var(--blue)}
+.hub .foot{margin-top:auto;padding-top:28px}
+@media (min-width:860px){
+  .wrap{max-width:920px}
+  .tiles{grid-template-columns:1fr 1fr}
+  .hero-logo{width:240px}
+  .wordmark{width:300px}
+}
+@media (prefers-reduced-motion:reduce){.tile{transition:none}}
+
+/* ===== the vault ===== */
+.vault{position:fixed;inset:0;overflow:hidden;background:#0b0a08;z-index:5;color:#F3E6C8}
+.scene{position:absolute;inset:0;transform-origin:0 0;transition:transform 1.5s cubic-bezier(.65,0,.25,1)}
+.scene img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;max-width:none;user-select:none;-webkit-user-drag:none}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none;transition:opacity 1.2s ease}
+.vault.zoomed .shade{opacity:.3}
+.hot{position:absolute;border:0;background:transparent;cursor:pointer;padding:0;border-radius:10px}
+.hot .ring{position:absolute;inset:-6px;border-radius:12px;border:2px solid rgba(240,196,110,.85);box-shadow:0 0 22px rgba(240,196,110,.55);animation:pulse 2.2s ease-in-out infinite}
+.hot .hint{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#F5D79A;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+.hot:focus-visible{outline:2px solid #F5D79A;outline-offset:8px}
+.vault.zoomed .hot{display:none}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+.terminal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(400px,calc(100% - 32px));background:linear-gradient(180deg,rgba(14,16,18,.92),rgba(8,9,11,.95));border:1px solid rgba(240,196,110,.35);border-radius:18px;padding:22px;box-shadow:0 0 60px rgba(240,196,110,.18),inset 0 0 40px rgba(240,196,110,.05);animation:boot .5s ease both}
+@keyframes boot{from{opacity:0;filter:brightness(2) blur(4px)}to{opacity:1;filter:none}}
+.terminal form{display:flex;flex-direction:column;gap:14px}
+.t-head{display:flex;align-items:center;gap:10px;color:#F0C46E;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.terminal .field label{color:#C9B48A}
+.terminal .field input{background:rgba(255,255,255,.04);border-color:rgba(240,196,110,.25);color:#F3E6C8}
+.terminal .field input:focus{outline-color:#F0C46E;background:rgba(255,255,255,.07)}
+.terminal .enter{background:linear-gradient(180deg,#F0C46E,#C9963F);color:#1a1206}
+.terminal .enter:hover{background:linear-gradient(180deg,#F5D08A,#D3A24E)}
+.terminal .err{color:#FF9C8A}
+.terminal.denied{animation:shake .4s ease;border-color:rgba(255,110,90,.7);box-shadow:0 0 50px rgba(255,90,70,.3)}
+.terminal.granted{border-color:rgba(120,230,150,.8);box-shadow:0 0 60px rgba(120,230,150,.35)}
+.terminal.granted .t-head{color:#8EF0A8}
+@keyframes shake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 8px),-50%)}75%{transform:translate(calc(-50% + 8px),-50%)}}
+.vbtn{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.45);border:1px solid rgba(240,196,110,.35);color:#F3E6C8;border-radius:999px;padding:9px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px)}
+.vbtn:focus-visible{outline:2px solid #F0C46E;outline-offset:3px}
+.vbtn.back{left:14px}
+.vbtn.mute{right:14px;padding:9px}
+.vfoot{position:absolute;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0;padding-inline:16px;text-align:center;font-size:10px;letter-spacing:.4px;color:rgba(243,230,200,.55)}
+.flash{position:absolute;inset:0;background:radial-gradient(circle at center,#fff6dc 0%,#f0c46e 45%,rgba(240,196,110,0) 75%);opacity:0;pointer-events:none;transition:opacity .9s ease}
+.vault.opening .flash{opacity:1}
+.vault.gone{opacity:0;transition:opacity .8s ease}
+@media (prefers-reduced-motion:reduce){.scene,.shade,.flash{transition:none}.hot .ring{animation:none}}
+
+/* walk-up video + live screen */
+.walk{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;max-width:none;opacity:0;transition:opacity .35s ease;pointer-events:none;background:#0b0a08}
+.vault.walking .walk,.vault.zoomed .walk{opacity:1}
+.endframe{transition:none}.vault.walking .endframe{opacity:0}
+.unlockv{transition:opacity .15s ease}.vault.walking .unlockv,.vault.zoomed .unlockv{opacity:0}.vault.unlocking .unlockv{opacity:1}
+.vault.unlocking .press,.vault.unlocking .back{display:none}
+.vault.walking .hot,.vault.zoomed .hot{display:none}
+.skip{position:absolute;inset:0;background:transparent;border:0;cursor:pointer}
+.press{position:absolute;display:grid;place-items:center;font:inherit;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#F6E7C4;
+  background:linear-gradient(180deg,rgba(26,22,16,.96),rgba(12,11,9,.96));border:2px solid rgba(240,196,110,.9);
+  clip-path:polygon(4% 0,96% 0,100% 18%,100% 82%,96% 100%,4% 100%,0 82%,0 18%);
+  box-shadow:0 0 24px rgba(240,196,110,.45);cursor:pointer;animation:glow 2.2s ease-in-out infinite;padding:0}
+.press:focus-visible{outline:2px solid #F5D79A;outline-offset:6px}
+.press::before{content:"";position:absolute;inset:3px;clip-path:inherit;border:1px solid rgba(240,196,110,.35)}
+@keyframes glow{0%,100%{filter:brightness(.9)}50%{filter:brightness(1.25)}}
+.terminal.on-screen{top:auto;transform:translateX(-50%)}
+.terminal.on-screen.denied{animation:shake2 .4s ease}
+@keyframes shake2{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 8px))}75%{transform:translateX(calc(-50% + 8px))}}
+@media (prefers-reduced-motion:reduce){.press{animation:none}.walk{transition:none}}
+</style>
+
+
+<!-- THE VAULT (entrance) -->
+<section class="vault" id="vault" hidden aria-label="MyAssist private network entrance">
+  <div class="scene" id="scene"><img id="vaultImg" src="img/vault.jpg" alt="The MyAssist vault door with a login kiosk in front of it"></div>
+  <video class="walk" id="walk" poster="img/vault.jpg" muted playsinline preload="auto" aria-hidden="true"><source src="video/walkup.mp4" type="video/mp4"><source src="video/walkup.webm" type="video/webm"></video>
+  <img class="walk endframe" id="endFrame" src="img/screen.jpg" alt="">
+  <video class="walk unlockv" id="unlockVid" playsinline preload="auto" aria-hidden="true"><source src="video/unlock.mp4" type="video/mp4"><source src="video/unlock.webm" type="video/webm"></video>
+  <audio class="walksnd" src="audio/walk-steps.mp3" preload="auto"></audio>
+  <audio class="walksnd" src="audio/walk-room.mp3" preload="auto"></audio>
+  <button class="skip" id="skip" type="button" aria-label="Skip to the kiosk screen" hidden></button>
+  <div class="shade" id="shade"></div>
+  <button class="press" id="press" type="button" hidden>Press to unlock</button>
+  <button class="hot" id="hot" type="button" aria-label="Open the login screen"><span class="ring"></span><span class="hint">Tap the screen</span></button>
+
+  <div class="terminal" id="terminal" hidden>
+    <form id="loginForm" autocomplete="on">
+      <div class="t-head">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path id="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <span id="tStatus">Identify yourself</span>
+      </div>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <button class="enter" id="enterBtn" type="submit">Unlock</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+  </div>
+
+  <button class="vbtn back" id="backBtn" type="button" hidden>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back
+  </button>
+  <button class="vbtn mute" id="muteBtn" type="button" aria-label="Sound off" aria-pressed="false">
+    <svg id="icoOn" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    <svg id="icoOff" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
+  </button>
+  <p class="vfoot">MyAssist™ is a trademark of 2451842 Alberta Inc. © <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</p>
+  <div class="flash" id="flash"></div>
+</section>
+<div class="wrap">
+
+  <!-- BEHIND THE DOOR -->
+  <main class="hub" id="hub" hidden>
+    <div class="top">
+      <div class="mini">
+        <img class="app-icon" src="img/myassist-logo.png" alt="" width="40" height="41">
+        <img class="wordmark" src="img/myassist-wordmark.png" alt="MyAssist" width="128" height="23">
+      </div>
+      <button class="out" id="outBtn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign out
+      </button>
+    </div>
+    <div class="hello"><h1 id="hello">Welcome back, Johnny</h1><p>Your projects</p></div>
+
+    <!-- Project tiles: edit the href when each app goes live -->
+    <nav class="tiles" aria-label="Projects">
+      <a class="tile" href="https://yodi.myassistnetwork.com">
+        <span class="ic" style="background:#E3F1E7;color:#2F6B45"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8z"/></svg></span>
+        <span class="tx"><b>YODI</b><span>Lead revival agent · Sterling Homes</span></span>
+        <span class="pill build">Building</span>
+      </a>
+      <a class="tile" href="https://canba.myassistnetwork.com">
+        <span class="ic" style="background:#F3E9D8;color:#8A5E22"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg></span>
+        <span class="tx"><b>Canba Construction</b><span>Multi-project tracker</span></span>
+        <span class="pill live">Live</span>
+      </a>
+      <a class="tile" href="#">
+        <span class="ic" style="background:var(--blue-tint);color:var(--blue)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg></span>
+        <span class="tx"><b>Link Insurance</b><span>Broker workspace</span></span>
+        <span class="pill build">Building</span>
+      </a>
+    </nav>
+    <div class="foot">
+      <span class="pow">Powered by <b>Autolink Dealer Network</b></span>
+      <p class="tm">MyAssist™ · © <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+/* ===== SETTINGS: paste from Supabase > Project Settings > API (project: myassist-network) =====
+   The "anon public" key is safe to put here. NEVER paste the service_role key. */
+var SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';
+var SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_PUBLIC_KEY';
+/* Where the kiosk screen sits in img/vault.jpg, as fractions of the picture (x, y, width, height) */
+var SCREEN = { x:0.447, y:0.612, w:0.108, h:0.096 };
+/* Where PRESS TO UNLOCK and the lock circle sit in the last frame of the walk-up video (1920x1080) */
+var PRESS = { x:0.349, y:0.824, w:0.302, h:0.092 };
+var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
+/* ============================================================================================ */
+
+(function(){
+  var vault=document.getElementById('vault'), scene=document.getElementById('scene'), img=document.getElementById('vaultImg');
+  var hot=document.getElementById('hot'), term=document.getElementById('terminal'), back=document.getElementById('backBtn');
+  var hub=document.getElementById('hub'), form=document.getElementById('loginForm'), err=document.getElementById('err');
+  var btn=document.getElementById('enterBtn'), status=document.getElementById('tStatus');
+  document.querySelectorAll('.yr').forEach(function(e){ e.textContent=new Date().getFullYear(); });
+
+  /* ---- where the screen lands on the visible page (image is "cover" fitted) ---- */
+  function screenRect(){
+    var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438;
+    var k=Math.max(vw/iw, vh/ih), dw=iw*k, dh=ih*k, ox=(vw-dw)/2, oy=(vh-dh)/2;
+    return { x:ox+SCREEN.x*dw, y:oy+SCREEN.y*dh, w:SCREEN.w*dw, h:SCREEN.h*dh, vw:vw, vh:vh };
+  }
+  /* map a box from the 1920x1080 video frame onto the page (video is "cover" fitted) */
+  function frameRect(b){
+    var vw=vault.clientWidth, vh=vault.clientHeight, k=Math.max(vw/1920, vh/1080), dw=1920*k, dh=1080*k, ox=(vw-dw)/2, oy=(vh-dh)/2;
+    return { x:ox+b.x*dw, y:oy+b.y*dh, w:b.w*dw, h:b.h*dh, vw:vw, vh:vh };
+  }
+  var press=document.getElementById('press'), walk=document.getElementById('walk'), skip=document.getElementById('skip');
+  function placePress(){
+    var r=frameRect(PRESS), w=Math.min(r.w, r.vw-48), h=Math.max(48, Math.min(r.h, w*0.2));
+    press.style.width=w+'px'; press.style.height=h+'px'; press.style.left=(r.vw-w)/2+'px';
+    press.style.top=Math.min(r.y, r.vh-h-44)+'px'; press.style.fontSize=Math.max(14, Math.min(h*0.34, 28))+'px';
+    var L=frameRect(LOCK), th=term.offsetHeight||300; term.style.top=Math.max(64, Math.min(L.y+L.h/2-th/2, r.vh-th-56))+'px';
+  }
+  function placeHot(){ var r=screenRect(); hot.style.left=r.x+'px'; hot.style.top=r.y+'px'; hot.style.width=r.w+'px'; hot.style.height=r.h+'px'; placePress(); }
+  img.addEventListener('load',placeHot); window.addEventListener('resize',placeHot); placeHot();
+
+  /* ---- sound: vault atmosphere made live in the browser (no files to load).
+     Optional real recordings: drop audio/steps.mp3, audio/unlock.mp3, audio/door.mp3 next to this page
+     and they replace the generated versions automatically. ---- */
+  var walkSnds=[].slice.call(document.querySelectorAll('.walksnd'));
+  var FILES = { steps:'audio/steps.mp3', unlock:'audio/unlock.mp3', door:'audio/door.mp3' };
+  var ac=null, out=null, master=null, fx=null, verb=null, humF=null, muted=false, bufs={}, bus=null, stepBus=null;
+  try{ muted = localStorage.getItem('vaultMuted')==='1'; }catch(e){}
+  function noise(sec){ var len=Math.floor(ac.sampleRate*sec), b=ac.createBuffer(1,len,ac.sampleRate), d=b.getChannelData(0); for(var i=0;i<len;i++) d[i]=Math.random()*2-1; return b; }
+  function makeVerb(){ /* a big stone room: generated impulse response */
+    var sec=2.6, len=Math.floor(ac.sampleRate*sec), b=ac.createBuffer(2,len,ac.sampleRate);
+    for(var c=0;c<2;c++){ var d=b.getChannelData(c); for(var i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2); } }
+    var cv=ac.createConvolver(); cv.buffer=b; var g=ac.createGain(); g.gain.value=.32; cv.connect(g); g.connect(out); return cv;
+  }
+  function loadFiles(){ Object.keys(FILES).forEach(function(k){
+    fetch(FILES[k]).then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(function(a){ return new Promise(function(res,rej){ ac.decodeAudioData(a,res,rej); }); })
+      .then(function(b){ bufs[k]=b; }).catch(function(){}); }); }
+  function playFile(k,vol){ if(!bufs[k]) return false; var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs[k]; g.gain.value=vol||1; s.connect(g); g.connect(out); s.start(); return s; }
+  function startHum(){
+    if(ac) { if(ac.state==='suspended') ac.resume(); return; }
+    try{
+      ac=new (window.AudioContext||window.webkitAudioContext)();
+      out=ac.createGain(); out.gain.value=muted?0:1; out.connect(ac.destination);
+      master=ac.createGain(); master.gain.value=0; humF=ac.createBiquadFilter(); humF.type='lowpass'; humF.frequency.value=380;
+      master.connect(humF); humF.connect(out);
+      fx=ac.createGain(); fx.gain.value=1; fx.connect(out); verb=makeVerb(); fx.connect(verb);
+      [55,110,165].forEach(function(f,i){ var o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=f; g.gain.value=[.22,.08,.03][i]; o.connect(g); g.connect(master); o.start(); });
+      var len=ac.sampleRate*2, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0), last=0;
+      for(var i=0;i<len;i++){ var w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3.5; }
+      var n=ac.createBufferSource(); n.buffer=buf; n.loop=true; var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500; var ng=ac.createGain(); ng.gain.value=.25;
+      n.connect(lp); lp.connect(ng); ng.connect(master); n.start();
+      /* slow breathing in the air handling */
+      var lfo=ac.createOscillator(), lg=ac.createGain(); lfo.frequency.value=.07; lg.gain.value=.08; lfo.connect(lg); lg.connect(ng.gain); lfo.start();
+      master.gain.linearRampToValueAtTime(.5, ac.currentTime+1.5);
+      loadFiles();
+    }catch(e){ ac=null; }
+  }
+  function swell(sec){ /* hum opens up as you approach the kiosk */
+    if(!ac) return; var t=ac.currentTime;
+    master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.85,t+sec);
+    humF.frequency.cancelScheduledValues(t); humF.frequency.setValueAtTime(humF.frequency.value,t); humF.frequency.exponentialRampToValueAtTime(1100,t+sec);
+  }
+  function settle(){ if(!ac) return; var t=ac.currentTime;
+    master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.5,t+1.2);
+    humF.frequency.cancelScheduledValues(t); humF.frequency.setValueAtTime(humF.frequency.value,t); humF.frequency.exponentialRampToValueAtTime(380,t+1.2); }
+  function tone(f,at,dur,vol,type){ var o=ac.createOscillator(), g=ac.createGain(); o.type=type||'sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(0,at); g.gain.linearRampToValueAtTime(vol,at+.008); g.gain.exponentialRampToValueAtTime(.0001,at+dur); o.connect(g); g.connect(bus||fx); o.start(at); o.stop(at+dur+.05); return o; }
+  function burst(at,dur,vol,ftype,freq,q){ var s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain(); s.buffer=noise(dur+.05); f.type=ftype; f.frequency.value=freq; f.Q.value=q||.7;
+    g.gain.setValueAtTime(vol,at); g.gain.exponentialRampToValueAtTime(.0001,at+dur); s.connect(f); f.connect(g); g.connect(bus||fx); s.start(at); }
+  function thump(at,f,vol,dur){ var o=ac.createOscillator(), g=ac.createGain(); o.frequency.setValueAtTime(f*2,at); o.frequency.exponentialRampToValueAtTime(f,at+.05);
+    g.gain.setValueAtTime(vol,at); g.gain.exponentialRampToValueAtTime(.0001,at+dur); o.connect(g); g.connect(bus||fx); o.start(at); o.stop(at+dur+.05); }
+  function step(at,vol){ thump(at,62,vol*.5,.18); burst(at,.06,vol*.5,'bandpass',2600,1.4); burst(at+.012,.04,vol*.25,'highpass',5000); }
+  function footsteps(sec){ /* leather on marble, slowing as you arrive */
+    if(muted) return;
+    /* your Veo walk-up audio, synced to the clip */
+    if(walkSnds.length && walkSnds[0].canPlayType('audio/mpeg')){ walkSnds.forEach(function(a){ try{ a.currentTime=0; var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){} }); return; }
+    if(!ac) return; if(playFile('steps',.9)) return;
+    stepBus=bus=ac.createGain(); bus.connect(fx);
+    var t=ac.currentTime+.25, gap=.56, end=ac.currentTime+sec-.6, v=.55;
+    while(t<end){ step(t,v); t+=gap; if(t>end-1.6){ gap+=.06; v*=.9; } }
+    bus=null;
+  }
+  function stopSteps(){ walkSnds.forEach(function(a){ try{ a.pause(); }catch(e){} }); if(!stepBus) return; var t=ac.currentTime; stepBus.gain.setValueAtTime(stepBus.gain.value,t); stepBus.gain.linearRampToValueAtTime(0,t+.25); stepBus=null; }
+  function sWake(){ if(!ac||muted) return; var t=ac.currentTime;
+    var o=ac.createOscillator(), g=ac.createGain(), f=ac.createBiquadFilter(); o.type='sawtooth'; o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(440,t+.6);
+    f.type='lowpass'; f.frequency.setValueAtTime(300,t); f.frequency.exponentialRampToValueAtTime(2400,t+.6);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.05,t+.3); g.gain.exponentialRampToValueAtTime(.0001,t+1.1);
+    o.connect(f); f.connect(g); g.connect(fx); o.start(t); o.stop(t+1.2);
+    tone(880,t+.45,1.4,.05); tone(1318.5,t+.55,1.6,.035); }
+  function sPress(){ if(!ac||muted) return; var t=ac.currentTime; thump(t,90,.35,.12); burst(t,.03,.18,'bandpass',3200,2); tone(1046.5,t+.02,.5,.05); }
+  function sDenied(){ if(!ac||muted) return; var t=ac.currentTime;
+    [0,.18].forEach(function(d){ var o=ac.createOscillator(), o2=ac.createOscillator(), f=ac.createBiquadFilter(), g=ac.createGain();
+      o.type=o2.type='square'; o.frequency.value=98; o2.frequency.value=103.5; f.type='lowpass'; f.frequency.value=700;
+      g.gain.setValueAtTime(0,t+d); g.gain.linearRampToValueAtTime(.07,t+d+.01); g.gain.exponentialRampToValueAtTime(.0001,t+d+.16);
+      o.connect(f); o2.connect(f); f.connect(g); g.connect(fx); o.start(t+d); o2.start(t+d); o.stop(t+d+.2); o2.stop(t+d+.2); }); }
+  function bell(f,at,vol){ [1,2.76,5.4].forEach(function(m,i){ tone(f*m,at,[2.2,1.2,.6][i],vol*[1,.35,.12][i]); }); }
+  function sGranted(){ if(!ac||muted) return; var t=ac.currentTime;
+    bell(783.99,t,.09); bell(1174.66,t+.16,.08);
+    if(playFile('unlock',1)) return;
+    thump(t+.45,48,.6,.5); burst(t+.45,.08,.3,'bandpass',1800,3); burst(t+.62,.06,.25,'bandpass',1400,3);
+    burst(t+.8,1.4,.12,'highpass',2800); }
+  function sDoor(){ if(!ac||muted) return; var t=ac.currentTime; if(playFile('door',1)) return;
+    for(var i=0;i<4;i++){ thump(t+i*.16,40+i*4,.45,.35); burst(t+i*.16,.05,.18,'bandpass',1500,4); }
+    var s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain(); s.buffer=noise(3); f.type='lowpass'; f.frequency.value=120;
+    g.gain.setValueAtTime(0,t+.6); g.gain.linearRampToValueAtTime(.5,t+1.2); g.gain.exponentialRampToValueAtTime(.0001,t+3.2); s.connect(f); f.connect(g); g.connect(fx); s.start(t+.6); }
+  var muteBtn=document.getElementById('muteBtn');
+  function paintMute(){ document.getElementById('icoOn').hidden=muted; document.getElementById('icoOff').hidden=!muted; muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
+  muteBtn.addEventListener('click',function(){ muted=!muted; try{ localStorage.setItem('vaultMuted',muted?'1':'0'); }catch(e){} if(!ac&&!muted) startHum(); if(out) out.gain.value=muted?0:1; walkSnds.forEach(function(a){ a.muted=muted; }); paintMute(); });
+  paintMute();
+
+  /* ---- the walk-up ---- */
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function arrive(){ /* walk-up finished: rest on the last frame, live button over the painted one */
+    if(vault.classList.contains('zoomed')) return;
+    skip.hidden=true; stopSteps(); vault.classList.remove('walking'); vault.classList.add('zoomed');
+    try{ if(walk.duration) walk.currentTime=Math.max(0,walk.duration-0.05); walk.pause(); }catch(e){}
+    placePress(); press.hidden=false; back.hidden=false; settle();
+  }
+  function openScreen(){
+    startHum(); sPress(); term.classList.add('on-screen');
+    if(reduce){ arrive(); return; }
+    swell(7.5); footsteps(8);
+    vault.classList.add('walking'); skip.hidden=false;
+    try{ walk.currentTime=0; var p=walk.play(); if(p&&p.catch) p.catch(arrive); }catch(e){ arrive(); }
+  }
+  walk.addEventListener('ended',arrive);
+  skip.addEventListener('click',arrive);
+  /* PRESS TO UNLOCK: no password for now, straight into the unlock clip */
+  var unlockVid=document.getElementById('unlockVid'), unlocked=false;
+  function finishUnlock(){ if(unlocked) return; unlocked=true; showHub(); }
+  press.addEventListener('click',function(){
+    press.hidden=true; back.hidden=true; sPress(); if(ac){ bell(783.99,ac.currentTime,.09); bell(1174.66,ac.currentTime+.16,.08); }
+    unlocked=false; vault.classList.add('unlocking'); unlockVid.muted=muted;
+    if(reduce){ finishUnlock(); return; }
+    try{ unlockVid.currentTime=0; var pr=unlockVid.play(); if(pr&&pr.catch) pr.catch(function(){ vault.classList.add('opening'); setTimeout(finishUnlock,900); }); }
+    catch(e){ finishUnlock(); }
+    setTimeout(finishUnlock,9500); /* safety net */
+  });
+  unlockVid.addEventListener('ended',finishUnlock);
+  function closeScreen(){ stopSteps(); settle(); term.hidden=true; press.hidden=true; skip.hidden=true; vault.classList.remove('zoomed','walking');
+    try{ walk.pause(); walk.currentTime=0; }catch(e){} back.hidden=true; err.textContent=''; }
+  hot.addEventListener('click',openScreen);
+  back.addEventListener('click',closeScreen);
+
+  function deny(msg){ term.classList.remove('denied'); void term.offsetWidth; term.classList.add('denied'); status.textContent='Access denied'; err.textContent=msg; sDenied(); }
+  function grant(){
+    term.classList.remove('denied'); term.classList.add('granted'); status.textContent='Access granted';
+    document.getElementById('shackle').setAttribute('d','M8 11V7a4 4 0 0 1 7.5-1.9'); sGranted();
+    setTimeout(function(){ term.hidden=true; vault.classList.add('opening'); sDoor(); },700);   /* placeholder for the door-opening video */
+    setTimeout(function(){ showHub(); },1800);
+  }
+  function showHub(){ hub.hidden=false; vault.classList.add('gone'); setTimeout(function(){ vault.hidden=true; vault.classList.remove('gone','opening','zoomed','walking','unlocking'); try{ unlockVid.pause(); unlockVid.currentTime=0; }catch(e){} press.hidden=true; back.hidden=true; try{ walk.currentTime=0; }catch(e){} term.classList.remove('granted'); status.textContent='Identify yourself'; },800); if(master){ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+2.5); } }
+  function showVault(){ hub.hidden=true; vault.hidden=false; back.hidden=true; term.hidden=true; placeHot(); if(master){ settle(); } }
+
+  var sb=null;
+  if(window.supabase && SUPABASE_URL.indexOf('PASTE')!==0){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); err.textContent='';
+    var em=document.getElementById('email').value.trim(), pw=document.getElementById('password').value;
+    if(!sb){ /* preview mode, no Supabase yet: any entry opens the door so you can test the flow */
+      if(!em||!pw){ deny('Enter an email and password.'); return; } grant(); return; }
+    btn.disabled=true; btn.textContent='Checking...';
+    sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){
+      if(r.error){ deny('That email and password didn\'t match.'); } else { grant(); }
+    }).finally(function(){ btn.disabled=false; btn.textContent='Unlock'; });
+  });
+  document.getElementById('outBtn').addEventListener('click',function(){ if(sb){ sb.auth.signOut(); } showVault(); });
+
+  if(sb){ sb.auth.getSession().then(function(r){ if(r.data.session){ hub.hidden=false; } else { showVault(); } }); }
+  else { showVault(); }
+})();
+</script>
+
+</body></html>
