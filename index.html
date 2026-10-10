@@ -78,8 +78,13 @@ form{display:flex;flex-direction:column;gap:14px}
 @media (prefers-reduced-motion:reduce){.tile{transition:none}}
 
 /* ===== the vault ===== */
-.vault{position:fixed;inset:0;overflow:hidden;background:#0b0a08;z-index:5;color:#F3E6C8}
-.scene{position:absolute;inset:0;transform-origin:0 0;transition:transform 1.5s cubic-bezier(.65,0,.25,1)}
+.vault{position:fixed;inset:0;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:#0b0a08;z-index:5;color:#F3E6C8}
+.scene{position:absolute;inset:0;transform-origin:0 0;will-change:transform;touch-action:none}
+.scene.glide img{transition:object-position .45s cubic-bezier(.4,0,.2,1)}
+.lookhint{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.85);text-shadow:0 2px 8px rgba(0,0,0,.8);pointer-events:none;transition:opacity .6s ease;white-space:nowrap}
+.lookhint.gone{opacity:0}
+.vault.walking .lookhint,.vault.zoomed .lookhint{display:none}
+@media (prefers-reduced-motion:reduce){.scene.glide{transition:none}}
 .scene img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;max-width:none;user-select:none;-webkit-user-drag:none}
 .shade{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none;transition:opacity 1.2s ease}
 .vault.zoomed .shade{opacity:.3}
@@ -158,6 +163,7 @@ form{display:flex;flex-direction:column;gap:14px}
   <button class="skip" id="skip" type="button" aria-label="Skip to the kiosk screen" hidden></button>
   <div class="shade" id="shade"></div>
   <button class="press" id="press" type="button" hidden>Press to unlock</button>
+  <div class="lookhint" id="lookHint" hidden aria-hidden="true"><span>&#9664;</span>Drag to look around<span>&#9654;</span></div>
   <button class="hot" id="hot" type="button" aria-label="Open the login screen"><span class="ring"></span><span class="hint">Tap the screen</span></button>
 
   <div class="terminal" id="terminal" hidden>
@@ -255,10 +261,38 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   document.querySelectorAll('.yr').forEach(function(e){ e.textContent=new Date().getFullYear(); });
 
   /* ---- where the screen lands on the visible page (image is "cover" fitted) ---- */
+  /* ---- look around: drag the wide shot left and right on narrow screens ---- */
+  var panX=0, lookHint=document.getElementById('lookHint');
+  function canPan(){ return !vault.classList.contains('walking') && !vault.classList.contains('zoomed') && !vault.hidden; }
+  function setPan(x){ var m=screenRect().maxPan; panX=Math.max(-m,Math.min(m,x)); applyPan(); var r=screenRect(); hot.style.left=r.x+'px'; }
+  (function(){
+    var down=false, sx=0, sp=0, lx=0, lt=0, vel=0, dragged=false, raf=0;
+    function glideStop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+    vault.addEventListener('pointerdown',function(e){
+      if(!canPan() || screenRect().maxPan<4 || e.target.closest('.vbtn')) return;
+      glideStop(); down=true; dragged=false; sx=lx=e.clientX; sp=panX; lt=performance.now(); vel=0; scene.classList.remove('glide');
+    });
+    window.addEventListener('pointermove',function(e){
+      if(!down) return; var dx=e.clientX-sx;
+      if(!dragged && Math.abs(dx)>8){ dragged=true; if(lookHint) lookHint.classList.add('gone'); }
+      if(dragged){ var now=performance.now(); vel=(e.clientX-lx)/Math.max(1,now-lt); lx=e.clientX; lt=now; setPan(sp+dx); }
+    });
+    function up(){ if(!down) return; down=false;
+      if(dragged){ var v=vel*16; (function step(){ v*=0.92; if(Math.abs(v)<0.3){ raf=0; return; } setPan(panX+v); raf=requestAnimationFrame(step); })(); } }
+    window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up);
+    /* a drag that ends on the kiosk is not a tap */
+    hot.addEventListener('click',function(e){ if(dragged){ e.stopImmediatePropagation(); e.preventDefault(); dragged=false; } },true);
+  })();
+  function applyPan(){ var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438;
+    var k=Math.max(vw/iw, vh/ih), ox=(vw-iw*k)/2; img.style.objectPosition=panX?((ox+panX)+'px 50%'):''; }
+  function centerThen(fn){ /* glide back to the middle so the walk-up starts exactly where the picture is */
+    if(Math.abs(panX)<2){ setPan(0); fn(); return; }
+    scene.classList.add('glide'); setPan(0); setTimeout(function(){ scene.classList.remove('glide'); fn(); },460);
+  }
   function screenRect(){
     var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438;
     var k=Math.max(vw/iw, vh/ih), dw=iw*k, dh=ih*k, ox=(vw-dw)/2, oy=(vh-dh)/2;
-    return { x:ox+SCREEN.x*dw, y:oy+SCREEN.y*dh, w:SCREEN.w*dw, h:SCREEN.h*dh, vw:vw, vh:vh };
+    return { x:ox+panX+SCREEN.x*dw, y:oy+SCREEN.y*dh, w:SCREEN.w*dw, h:SCREEN.h*dh, vw:vw, vh:vh, maxPan:Math.max(0,(dw-vw)/2) };
   }
   /* map a box from the 1920x1080 video frame onto the page (video is "cover" fitted) */
   function frameRect(b){
@@ -272,7 +306,11 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
     press.style.top=Math.min(r.y, r.vh-h-44)+'px'; press.style.fontSize=Math.max(14, Math.min(h*0.34, 28))+'px';
     var L=frameRect(LOCK), th=term.offsetHeight||300; term.style.top=Math.max(64, Math.min(L.y+L.h/2-th/2, r.vh-th-56))+'px';
   }
-  function placeHot(){ var r=screenRect(); hot.style.left=r.x+'px'; hot.style.top=r.y+'px'; hot.style.width=r.w+'px'; hot.style.height=r.h+'px'; placePress(); }
+  function placeHot(){ setPanBounds(); var r=screenRect(); hot.style.left=r.x+'px'; hot.style.top=r.y+'px'; hot.style.width=r.w+'px'; hot.style.height=r.h+'px'; placePress(); }
+  function setPanBounds(){ var m=Math.max(0,(function(){ var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438; var k=Math.max(vw/iw, vh/ih); return (iw*k-vw)/2; })());
+    if(Math.abs(panX)>m){ panX=panX<0?-m:m; } applyPan();
+    if(lookHint){ lookHint.hidden = m<40; } }
+  setTimeout(function(){ if(lookHint) lookHint.classList.add('gone'); },6000);
   img.addEventListener('load',placeHot); window.addEventListener('resize',placeHot); placeHot();
 
   /* ---- sound: vault atmosphere made live in the browser (no files to load).
@@ -375,6 +413,9 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   }
   function openScreen(){
     startHum(); sPress(); term.classList.add('on-screen');
+    centerThen(beginWalk);
+  }
+  function beginWalk(){
     if(reduce){ arrive(); return; }
     swell(7.5); footsteps(8);
     vault.classList.add('walking'); skip.hidden=false;
