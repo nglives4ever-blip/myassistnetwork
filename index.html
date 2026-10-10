@@ -363,13 +363,21 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
   /* PRESS TO UNLOCK: no password for now, straight into the unlock clip */
   var unlockVid=document.getElementById('unlockVid'), unlocked=false;
   function finishUnlock(){ if(unlocked) return; unlocked=true; showHub(); }
-  press.addEventListener('click',function(){
-    press.hidden=true; back.hidden=true; sPress(); if(ac){ bell(783.99,ac.currentTime,.09); bell(1174.66,ac.currentTime+.16,.08); }
+  var signedIn=false;
+  function playUnlock(){
+    press.hidden=true; back.hidden=true; term.hidden=true; if(ac){ bell(783.99,ac.currentTime,.09); bell(1174.66,ac.currentTime+.16,.08); }
     unlocked=false; vault.classList.add('unlocking'); unlockVid.muted=muted;
     if(reduce){ finishUnlock(); return; }
     try{ unlockVid.currentTime=0; var pr=unlockVid.play(); if(pr&&pr.catch) pr.catch(function(){ vault.classList.add('opening'); setTimeout(finishUnlock,900); }); }
     catch(e){ finishUnlock(); }
     setTimeout(finishUnlock,9500); /* safety net */
+  }
+  /* PRESS TO UNLOCK: a remembered device goes straight in; otherwise the gold login appears on the screen */
+  press.addEventListener('click',function(){
+    sPress();
+    if(signedIn){ playUnlock(); return; }
+    press.hidden=true; term.classList.remove('denied','granted'); status.textContent='Identify yourself'; err.textContent='';
+    term.hidden=false; placePress(); document.getElementById('email').focus({preventScroll:true});
   });
   unlockVid.addEventListener('ended',finishUnlock);
   function closeScreen(){ stopSteps(); settle(); term.hidden=true; press.hidden=true; skip.hidden=true; vault.classList.remove('zoomed','walking');
@@ -379,13 +387,12 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
 
   function deny(msg){ term.classList.remove('denied'); void term.offsetWidth; term.classList.add('denied'); status.textContent='Access denied'; err.textContent=msg; sDenied(); }
   function grant(){
-    term.classList.remove('denied'); term.classList.add('granted'); status.textContent='Access granted';
-    document.getElementById('shackle').setAttribute('d','M8 11V7a4 4 0 0 1 7.5-1.9'); sGranted();
-    setTimeout(function(){ term.hidden=true; vault.classList.add('opening'); sDoor(); },700);   /* placeholder for the door-opening video */
-    setTimeout(function(){ showHub(); },1800);
+    signedIn=true; term.classList.remove('denied'); term.classList.add('granted'); status.textContent='Access granted';
+    document.getElementById('shackle').setAttribute('d','M8 11V7a4 4 0 0 1 7.5-1.9');
+    setTimeout(playUnlock,450);
   }
   function showHub(){ hub.hidden=false; vault.classList.add('gone'); setTimeout(function(){ vault.hidden=true; vault.classList.remove('gone','opening','zoomed','walking','unlocking'); try{ unlockVid.pause(); unlockVid.currentTime=0; }catch(e){} press.hidden=true; back.hidden=true; try{ walk.currentTime=0; }catch(e){} term.classList.remove('granted'); status.textContent='Identify yourself'; },800); if(master){ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+2.5); } }
-  function showVault(){ hub.hidden=true; vault.hidden=false; back.hidden=true; term.hidden=true; placeHot(); if(master){ settle(); } }
+  function showVault(){ hub.hidden=true; vault.hidden=false; back.hidden=true; term.hidden=true; press.hidden=true; term.classList.remove('granted','denied'); placeHot(); if(master){ settle(); } }
 
   var sb=null;
   if(window.supabase && SUPABASE_URL.indexOf('PASTE')!==0){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
@@ -400,9 +407,9 @@ var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
       if(r.error){ deny('That email and password didn\'t match.'); } else { grant(); }
     }).finally(function(){ btn.disabled=false; btn.textContent='Unlock'; });
   });
-  document.getElementById('outBtn').addEventListener('click',function(){ if(sb){ sb.auth.signOut(); } showVault(); });
+  document.getElementById('outBtn').addEventListener('click',function(){ if(sb){ sb.auth.signOut(); } signedIn=false; showVault(); });
 
-  if(sb){ sb.auth.getSession().then(function(r){ if(r.data.session){ hub.hidden=false; } else { showVault(); } }); }
+  if(sb){ sb.auth.getSession().then(function(r){ signedIn=!!(r.data&&r.data.session); showVault(); }); }
   else { showVault(); }
 })();
 </script>
