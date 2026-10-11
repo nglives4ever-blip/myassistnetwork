@@ -16,6 +16,18 @@ Owned by 2451842 Alberta Inc. MyAssist is TM (filed, not registered), never (R).
 - Phones: drag pans the wide shot left/right (natural direction), release drifts back to center; the room auto-drifts gently with a "Take a look around" hint until touched, and again after idle.
 - Future 360 room (planned, 30 ft ceiling): up/down is INVERTED (drag down looks up, drag up looks down). Left/right stays natural, never inverted.
 
+## /lookaround/ test page (lookaround/index.html) - the next front page
+Canvas frame-scrub built from Johnny's Veo clips. Not linked from the home page yet; plan is to make it the real front page once approved.
+- Turn (h/, 168 frames; hm/ = 960px phone copies): drag is 1:1 with the cursor using measured per-frame shift (D/S arrays), frames slide and cross-fade. Stops: vault (frame 0) and lobby (82). Past LIMIT the camera takes over (glitch on the right route). Lobby rests on the HD still lobby.jpg, aligned to frame 82 (HD_M).
+- Look up (v/, vm/): only from the vault. Stations: vault, sign from below (88, auto stops here going up), sign close-up (97, auto stops here coming down), ceiling (185). 88 to 97 is under the hand.
+- Release: after 2s eases back to the current station. Lobby, sign and ceiling are stations: user must move back on their own.
+- Posters (tracked quads 78-118): click plays a film starting on the HD lobby (freedom.*, cosmic.*), short soft glitch over the AI wobble, click again plays the *_rev film back to the lobby.
+- Kiosk: click plays ../video/walkup (starts exactly on frame 0), PRESS TO UNLOCK, ../video/unlock, Coming Soon, back to vault.
+- Cursors: gold open hand, fist only while grabbing the room, gold pointing finger (hand-point*.png) over posters/kiosk/press (never a fist there).
+- Phone (portrait): free look inside the frame first (left/right, a little up/down), overflow turns the footage (PH_GAIN 2, long limits x0.6), flick glide, 1x canvas, no grab zoom, lobby left edge holds then a firm pull goes to the vault (avoids the baked glitch frames). TAP TO VIEW / TAP TO ENTER breathing gold cues; press lights the target.
+- Test hooks: window.__la(), __pa(x,y), __pb(). Test with Playwright; python http.server lacks Range requests so videos can't seek, use a Range-capable server.
+- Always give Johnny the link at the end: https://www.myassistnetwork.com/lookaround/
+
 ## Rules
 - YODI is not built in this repo.
 - Any login or database for this site uses the Supabase project "myassist-network", never "myassist" (that is the Autolink MyAssist app).
