@@ -102,7 +102,7 @@
         ctx.drawImage(VA,x0,y0+g*dv*k,w,hh);
         if(g>0.3){ var ga=Math.min(1,(g-0.3)/0.4); ctx.globalAlpha=ga*ga*(3-2*ga); ctx.drawImage(VB,x0,y0-(1-g)*dv*k,w,hh); ctx.globalAlpha=1; }
       } else { var vim=nearest(V,vh)||nearest(H,0); if(vim) ctx.drawImage(vim,x0,y0,w,hh); }
-      var vb=vs===0 ? Math.max(vFade, 1-voff/30) : vFade;   /* the real vault frame melts into the look-up footage over the first few pixels */
+      var vt=Math.max(0,Math.min(1,(voff-40)/190)), vb=vs===0 ? Math.max(vFade, 1-vt*vt*(3-2*vt)) : vFade;   /* the real vault frame holds, then melts slowly into the look-up footage */
       if(vb>0){ var hv0=nearest(H,0); if(hv0){ ctx.globalAlpha=Math.min(1,vb); ctx.drawImage(hv0,x0,y0+(vs===0&&!playing?voff*k:0),w,hh); ctx.globalAlpha=1; } }
     } else if(ready(A) && (f<0.002 || ready(B))){
       ctx.drawImage(A,x0-f*di*k,y0,w,hh);                                   /* this frame slides along with your hand */
@@ -234,7 +234,7 @@
     var from=vh, to=dir>0?VSTOP[vs+1]:(vs===1?16:VSTOP[vs-1]), d=to>from?1:-1, tPrev=performance.now(), pos=from;
     (function step(now){ var el=(now-tPrev)/1000; tPrev=now; pos+=d*el*VPLAY_FPS;
       if((d>0&&pos>=to)||(d<0&&pos<=to)){ vh=to; vs+=dir; voff=0; vPlaying=false; playing=false; cv.classList.remove('playing'); zoomTo(1,600);
-        if(vs===0){ var t0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-t0)/320); vFade=t; draw(); if(t<1) requestAnimationFrame(fade); else { vFade=0; vh=0; draw(); } })(t0); }
+        if(vs===0){ var t0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-t0)/750); vFade=t*t*(3-2*t); draw(); if(t<1) requestAnimationFrame(fade); else { vFade=0; vh=0; draw(); } })(t0); }
         else vplace(); return; }
       vh=pos; draw(); raf=requestAnimationFrame(step); })(tPrev);
   }
