@@ -87,11 +87,13 @@
   /* ---- phone (portrait): the wide picture is much bigger than the screen, so dragging first looks around inside the frame
      (left, right, and a little up and down). Only when you reach the edge does the footage itself start to turn. ---- */
   function isPhone(){ return innerHeight>innerWidth; }
+  /* phones draw at 1x: the footage is 720p anyway, and it keeps every frame cheap so dragging stays smooth */
+  function DPR(){ return isPhone()?1:Math.min(window.devicePixelRatio||1,2); }
   var panX=0, panY=0, PH_Z=1.1, PH_GAIN=2, PH_LIM=0.6;   /* on a phone the footage turns faster under the finger and takes over sooner */
   function lim(L){ return isPhone()?{fwd:L.fwd*PH_LIM, back:L.back*PH_LIM}:L; }
   function baseZ(){ return isPhone()?PH_Z:1; }
   function panBounds(){ /* in CSS px: how far the picture can slide before an edge would show */
-    var dpr=Math.min(window.devicePixelRatio||1,2), cw=cv.width, ch=cv.height, k=kc(), sz=baseZ()*zoom*OVER, w=1280*k, hh=720*k;
+    var dpr=DPR(), cw=cv.width, ch=cv.height, k=kc(), sz=baseZ()*zoom*OVER, w=1280*k, hh=720*k;
     var mx=48*k*sz, my=24*k*sz, offx=SHIFT0*k*sz;   /* leave room for frames sliding as they blend */
     var ax=Math.max(0,(w*sz-cw)/2-mx), ay=Math.max(0,(hh*sz-ch)/2-my);
     return { x0:(-ax-offx)/dpr, x1:(ax-offx)/dpr, y0:-ay/dpr, y1:ay/dpr }; }
@@ -101,12 +103,12 @@
   function kc(){ return Math.max(cv.width/1280, cv.height/720); }
 
   function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(ready(a)) return a; if(ready(b)) return b; } return null; }
-  function fit(){ var dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(innerWidth*dpr); cv.height=Math.round(innerHeight*dpr); draw(); }
+  function fit(){ var dpr=DPR(); cv.width=Math.round(innerWidth*dpr); cv.height=Math.round(innerHeight*dpr); draw(); }
   var pending=false;
   function draw(){ if(pending) return; pending=true; requestAnimationFrame(function(){ pending=false;
     var i0=Math.floor(h), f=h-i0, A=H[i0], B=H[Math.min(H_COUNT-1,i0+1)], di=D[i0]||0;
     var cw=cv.width, ch=cv.height, k=kc(), w=1280*k, hh=720*k, x0=(cw-w)/2+SHIFT0*k, y0=(ch-hh)/2;
-    var sz=baseZ()*zoom*OVER*(1+(1/OVER-1)*pvU), fcx=cw/2, fcy=ch/2, dprD=Math.min(window.devicePixelRatio||1,2);
+    var sz=baseZ()*zoom*OVER*(1+(1/OVER-1)*pvU), fcx=cw/2, fcy=ch/2, dprD=DPR();
     if(isPhone()){ clampPan(); fcx-=panX*dprD/sz; fcy-=panY*dprD/sz; }
     if(ft>0.001 && focus){ var c=focusCenter(k,sz); sz*=1+(c.z-1)*ft; fcx=cw/2+(c.dx-cw/2)*ft; fcy=ch/2+(c.dy-ch/2)*ft; }
     ctx.save(); ctx.translate(cw/2,ch/2); ctx.scale(sz,sz); ctx.translate(-fcx,-fcy);
@@ -195,7 +197,7 @@
   var LIMIT=[ {fwd:S[44], back:-(S[END]-S[127])},      /* vault: into the bright corridor / round the other side */
               {fwd:S[118]-S[LOBBY], back:-(S[LOBBY]-S[68])} ];   /* lobby: the lounge side / back toward the glitch */
   var stop=0, off=0, playing=false, down=false, lx=0, raf=0, homeBlend=0;
-  function pxScale(){ return kc()*OVER*zoom*baseZ()/Math.min(window.devicePixelRatio||1,2); }   /* screen pixels per source pixel: 1:1 with the cursor */
+  function pxScale(){ return kc()*OVER*zoom*baseZ()/DPR(); }   /* screen pixels per source pixel: 1:1 with the cursor */
   var lastOff=0;
   function place(){ /* turn (stop, off) into a frame, blending the real vault in near home when going backwards */
     lastOff=off;
@@ -275,7 +277,7 @@
   var hover=null, focus=null, ft=0, ftRaf=0;
   function posterQuad(name){ if(stop!==1 && !focus) return null; var q=POSTERS[name], i0=Math.floor(h), f=h-i0, a=q[i0-P0], b=q[i0+1-P0]||a; if(!a) return null;
     var r=[]; for(var j=0;j<a.length;j++) r.push(a[j]+(b[j]-a[j])*f); return r; }
-  function toSource(cx,cy){ var dpr=Math.min(window.devicePixelRatio||1,2), cw=cv.width, ch=cv.height, k=kc(), x0=(cw-1280*k)/2+SHIFT0*k, y0=(ch-720*k)/2, sz=zoom*OVER*baseZ(); cx-=isPhone()?panX:0; cy-=isPhone()?panY:0;
+  function toSource(cx,cy){ var dpr=DPR(), cw=cv.width, ch=cv.height, k=kc(), x0=(cw-1280*k)/2+SHIFT0*k, y0=(ch-720*k)/2, sz=zoom*OVER*baseZ(); cx-=isPhone()?panX:0; cy-=isPhone()?panY:0;
     return { x:((cx*dpr-cw/2)/sz+cw/2-x0)/k, y:((cy*dpr-ch/2)/sz+ch/2-y0)/k }; }
   function inPoly(q,x,y){ var c=false; for(var i=0,j=q.length-2;i<q.length;j=i,i+=2){ var xi=q[i],yi=q[i+1],xj=q[j],yj=q[j+1];
     if(((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; }
@@ -370,7 +372,7 @@
   var fistT=0; function fist(){ clearTimeout(fistT); cv.classList.add('grabbing'); }
   function unfist(){ clearTimeout(fistT); fistT=setTimeout(function(){ if(!down) cv.classList.remove('grabbing'); },220); }
   addEventListener('pointerup',function(){ if(!down) unfist(); });
-  cv.addEventListener('pointerdown',function(e){ fist(); if(playing) return;
+  cv.addEventListener('pointerdown',function(e){ fist(); cancelAnimationFrame(flickRaf); pvx=pvy=0; if(playing) return;
     if(focus){ if(pvName){ if(pvOn) pvBack(); } else if(ft>0.5) unfocus(); return; }
     downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
@@ -384,20 +386,31 @@
     if(axis==='v'){ var nv=performance.now(); vsetOff(voff+(e.clientY-ly)/pxScale()); ly=e.clientY; lx=e.clientX; lastMoveT=nv; return; }
     var now=performance.now(), prev=off; var nOff=off-(e.clientX-lx)/pxScale(); if(stop===1 && lobbyA>0.5 && Math.abs(prev)<12 && Math.abs(nOff)>=12) glitchPulse(0.2,260); setOff(nOff); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function phoneMove(e){
-    var dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY; if(!axis){ if(Math.max(Math.abs(e.clientX-downX),Math.abs(e.clientY-downY))<4) return; axis='p'; zoomTo(GRAB_ZOOM,220); }
-    var b=panBounds(), now=performance.now(), prev=off;
+    var dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
+    if(!axis){ if(Math.max(Math.abs(e.clientX-downX),Math.abs(e.clientY-downY))<4) return; axis='p'; }   /* no grab zoom on a phone: the picture stays exactly under your finger */
+    var now=performance.now(), dt=Math.max(8,now-(lastMoveT||now-16)); lastMoveT=now;
+    pvx=0.7*pvx+0.3*(dx/dt); pvy=0.7*pvy+0.3*(dy/dt);   /* finger speed, for the flick */
+    applyPhone(dx,dy); }
+  var pvx=0, pvy=0, flickRaf=0;
+  function applyPhone(dx,dy){
+    var b=panBounds();
     /* left / right */
     if(dx){ if(Math.abs(off)>0.5 && !(vs>0||voff>0.5)){ var no=off-dx/pxScale()*PH_GAIN; if(off*no<0){ dx=-no*pxScale()/PH_GAIN; no=0; } else dx=0; setOff(no); if(playing) return; }
       if(dx){ var nx=panX+dx, cx2=Math.max(b.x0,Math.min(b.x1,nx)), ox=nx-cx2; panX=cx2; if(ox && vs===0 && voff<0.5){ setOff(off-ox/pxScale()*PH_GAIN); if(playing) return; } } }
     /* up / down: a little room inside the frame, then pulling down past the top looks up (at the vault) */
     if(dy){ if(vs>0 || voff>0.5){ vsetOff(voff+dy/pxScale()*PH_GAIN); if(playing) return; if(vs===0 && voff<=0.5){ voff=0; } }
       else { var ny=panY+dy, cy2=Math.max(b.y0,Math.min(b.y1,ny)), oy=ny-cy2; panY=cy2; if(oy>0 && stop===0 && Math.abs(off)<2){ vsetOff(voff+oy/pxScale()*PH_GAIN); } } }
-    vel=(off-prev)/Math.max(1,now-(lastMoveT||now-16)); lastMoveT=now; draw(); }
+    draw(); }
+  function flick(){ /* let go mid-swipe and the view keeps gliding a little, like scrolling on a phone */
+    cancelAnimationFrame(flickRaf); if(performance.now()-lastMoveT>90){ pvx=pvy=0; }
+    var vx=pvx*16, vy=pvy*16, t=performance.now();
+    (function step(){ if(down||playing){ return; } if(Math.abs(vx)<0.3 && Math.abs(vy)<0.3){ armIdle(); return; }
+      applyPhone(vx, (vs>0||voff>0.5)?vy*0.5:vy); vx*=0.92; vy*=0.92; flickRaf=requestAnimationFrame(step); })(); }
   function up(e){ if(!down) return; down=false; unfist();
     var click=e && Math.abs(e.clientX-downX)<10 && Math.abs(e.clientY-downY)<10 && performance.now()-downT<700;
     if(click && downPoster && !playing){ if(PV[downPoster]) playPoster(downPoster); else focusPoster(downPoster); return; }
     if(playing) return;
-    if(axis==='p'){ armIdle(); return; }   /* phone: hold where you let go, drift home after a moment */
+    if(axis==='p'){ flick(); return; }   /* phone: glide a touch, hold, then drift home after a moment */
     if(axis==='v'){ if(vs===0 && voff<20) vsettle(); else armIdle(); return; }
     if(performance.now()-lastMoveT>120) vel=0; glide(); }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
