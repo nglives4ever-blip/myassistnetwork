@@ -48,11 +48,11 @@
 <script>
 /* Look-around test.
    The Veo turn footage plays frame by frame under your finger, with two stops: the vault and the lobby.
-   The look-up footage (v/) is kept for later; up/down will be inverted like a camera when it returns. */
+   From the vault you can also grab and pull the room down to look up (v/): the Trinity Ark sign, then the ceiling. */
 (function(){
   var H_COUNT=168, V_COUNT=186;
   var cv=document.getElementById('view'), ctx=cv.getContext('2d');
-  var H=new Array(H_COUNT), V=new Array(V_COUNT), loaded=0, total=H_COUNT;
+  var H=new Array(H_COUNT), V=new Array(V_COUNT), loaded=0, total=H_COUNT+V_COUNT;
   var h=0, v=0;                         // positions in frames (floats)
   var hint=document.getElementById('hint'), bar=document.getElementById('bar'), load=document.getElementById('load');
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -67,7 +67,8 @@
   /* frames closest to where you start (vault, both sides of it, and the lobby) load first, so the first drag is never waiting */
   (function(){ var order=[]; for(var i=0;i<H_COUNT;i++) order.push(i);
     order.sort(function(a,b){ function d(x){ return Math.min(Math.abs(x-16),Math.abs(x-158),Math.abs(x-82)*1.5); } return d(a)-d(b); });
-    order.forEach(function(i){ want(H,'h',i); }); /* look-up frames (v/) parked for now: left and right only */ })();
+    order.forEach(function(i){ want(H,'h',i); });
+    for(var j=0;j<V_COUNT;j++) want(V,'v',j); /* the look-up frames come in after the turn */ })();
 
   /* How far the picture actually slides between each frame and the next (in source pixels, measured from the footage).
      Dragging moves through this distance one to one, so the room stays stuck to your hand: no dead spots where the
@@ -78,6 +79,12 @@
   function frameAt(s){ if(s<=0) return 0; if(s>=S[S.length-1]) return S.length-1;
     var lo=0, hi=S.length-1; while(hi-lo>1){ var m=(lo+hi)>>1; if(S[m]<=s) lo=m; else hi=m; }
     return D[lo]>0 ? lo+(s-S[lo])/D[lo] : lo; }
+  /* the same for looking up: how far the picture slides down between each look-up frame */
+  var DV=[0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,6,10,14,18,20,22,23,23,23,23,23,23,22,22,21,19,19,19,18,17,18,17,17,16,16,15,13,12,11,11,12,13,14,15,16,17,17,16,16,16,15,15,15,14,13,13,12,13,14,14,15,16,13,13,13,14,15,15,14,13,13,12,12,11,9,9,8,7,6,6,5,5,4,4,3,3,2,2,1,1,1,1,2,2,2,3,3,4,4,4,6,6,6,8,8,8,8,9,10,10,10,12,12,12,12,13,13,14,14,14,15,15,15,15,15,15,14,14,14,14,15,15,15,14,15,14,14,15,15,15,15,15,15,14,13,13,13,13,13,12,13,12,12,12,12,11,11,10,10,9,9,9,9,9,9,8,8,8,8,8,8,8,7,7,7,7,7,6,6,6];
+  var SV=[0]; for(var q2=0;q2<DV.length;q2++) SV.push(SV[q2]+DV[q2]);
+  function frameAtV(s){ if(s<=0) return 0; if(s>=SV[SV.length-1]) return SV.length-1;
+    var lo=0, hi=SV.length-1; while(hi-lo>1){ var m=(lo+hi)>>1; if(SV[m]<=s) lo=m; else hi=m; }
+    return DV[lo]>0 ? lo+(s-SV[lo])/DV[lo] : lo; }
   function kc(){ return Math.max(cv.width/1280, cv.height/720); }
 
   function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(ready(a)) return a; if(ready(b)) return b; } return null; }
@@ -89,7 +96,15 @@
     var sz=zoom*OVER, fcx=cw/2, fcy=ch/2;
     if(ft>0.001 && focus){ var c=focusCenter(k,sz); sz*=1+(c.z-1)*ft; fcx=cw/2+(c.dx-cw/2)*ft; fcy=ch/2+(c.dy-ch/2)*ft; }
     ctx.save(); ctx.translate(cw/2,ch/2); ctx.scale(sz,sz); ctx.translate(-fcx,-fcy);
-    if(ready(A) && (f<0.002 || ready(B))){
+    if(vmode()){ /* looking up: the frame slides down with your hand and the next one blends in, same as the turn */
+      var j0=Math.floor(vh), g=vh-j0, VA=V[j0], VB=V[Math.min(V_COUNT-1,j0+1)], dv=DV[j0]||0;
+      if(ready(VA) && (g<0.002 || ready(VB))){
+        ctx.drawImage(VA,x0,y0+g*dv*k,w,hh);
+        if(g>0.3){ var ga=Math.min(1,(g-0.3)/0.4); ctx.globalAlpha=ga*ga*(3-2*ga); ctx.drawImage(VB,x0,y0-(1-g)*dv*k,w,hh); ctx.globalAlpha=1; }
+      } else { var vim=nearest(V,vh)||nearest(H,0); if(vim) ctx.drawImage(vim,x0,y0,w,hh); }
+      var vb=vs===0 ? Math.max(vFade, 1-voff/30) : vFade;   /* the real vault frame melts into the look-up footage over the first few pixels */
+      if(vb>0){ var hv0=nearest(H,0); if(hv0){ ctx.globalAlpha=Math.min(1,vb); ctx.drawImage(hv0,x0,y0+(vs===0&&!playing?voff*k:0),w,hh); ctx.globalAlpha=1; } }
+    } else if(ready(A) && (f<0.002 || ready(B))){
       ctx.drawImage(A,x0-f*di*k,y0,w,hh);                                   /* this frame slides along with your hand */
       if(f>0.3){ var fa=Math.min(1,(f-0.3)/0.4); ctx.globalAlpha=fa*fa*(3-2*fa); ctx.drawImage(B,x0+(1-f)*di*k,y0,w,hh); ctx.globalAlpha=1; }   /* and the next one cross-fades in, lined up with it, in the middle of the gap so there is no ghosting */
     } else { var im=nearest(H,h); if(!im){ ctx.restore(); return; } ctx.drawImage(im,x0,y0,w,hh); }
@@ -197,6 +212,30 @@
   }
   var vel=0, lastMoveT=0, idleTimer=0;
 
+  /* ---- looking up (from the vault only) ----
+     Grab and pull the room down to look up; it follows your hand one to one. Three stations: the vault, the Trinity Ark sign
+     and the ceiling. Pull past the point and the camera carries you to the next one; push the room back up to come down. */
+  var VSTOP=[0,97,185], vs=0, voff=0, vh=0, vFade=0, VPLAY_FPS=20;
+  var VLIMIT=[ {fwd:SV[45], back:0},
+               {fwd:SV[140]-SV[97], back:-(SV[97]-SV[60])},
+               {fwd:0, back:-(SV[185]-SV[155])} ];
+  function vmode(){ return vs>0 || voff>0.01 || vPlaying || vFade>0; }
+  var vPlaying=false;
+  function vplace(){ vh=(vs===0 && voff<0.5)?0:frameAtV(SV[VSTOP[vs]]+voff); draw(); }
+  function vsetOff(n){ var L=VLIMIT[vs]; voff=Math.max(L.back,Math.min(L.fwd,n)); vplace();
+    if(L.fwd>0 && voff>=L.fwd) vautoplay(1); else if(L.back<0 && voff<=L.back) vautoplay(-1); }
+  function vautoplay(dir){
+    playing=true; vPlaying=true; down=false; cancelAnimationFrame(raf); cv.classList.remove('grabbing'); cv.classList.add('playing');
+    var from=vh, to=dir>0?VSTOP[vs+1]:(vs===1?16:VSTOP[vs-1]), d=to>from?1:-1, tPrev=performance.now(), pos=from;
+    (function step(now){ var el=(now-tPrev)/1000; tPrev=now; pos+=d*el*VPLAY_FPS;
+      if((d>0&&pos>=to)||(d<0&&pos<=to)){ vh=to; vs+=dir; voff=0; vPlaying=false; playing=false; cv.classList.remove('playing'); zoomTo(1,600);
+        if(vs===0){ var t0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-t0)/320); vFade=t; draw(); if(t<1) requestAnimationFrame(fade); else { vFade=0; vh=0; draw(); } })(t0); }
+        else vplace(); return; }
+      vh=pos; draw(); raf=requestAnimationFrame(step); })(tPrev);
+  }
+  function vsettle(){ clearTimeout(idleTimer); zoomTo(1,900); var from=voff, t0=performance.now();
+    (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3); voff=from*(1-e); vplace(); if(t<1) raf=requestAnimationFrame(step); })(t0); }
+
   /* ---- clickable posters in the lobby ----
      Each poster's outline was tracked through the footage (frames 78 to 118, in source pixels), so the click area
      follows the poster wherever the camera is, even mid-turn. Click one and the camera turns and pushes in on it;
@@ -240,27 +279,38 @@
   /* let go and leave it: a couple of seconds later the camera eases back to where it rests (the vault, or the sharp lobby still).
      The lobby stays put until they turn back to the vault themselves. */
   var IDLE_RETURN=2000;
-  function armIdle(){ clearTimeout(idleTimer); var turned=Math.abs(off)>0.5;
+  function armIdle(){ clearTimeout(idleTimer); var vert=vs>0||voff>0.01, turned=vert?Math.abs(voff)>0.5:Math.abs(off)>0.5;
     idleTimer=setTimeout(function(){ if(down||playing) return;
-      if(turned) settle(); }, IDLE_RETURN); }
+      if(turned){ if(vert) vsettle(); else settle(); } }, IDLE_RETURN); }
   function settle(){ /* ease back to the stop */
     clearTimeout(idleTimer); zoomTo(1,900); var from=off, t0=performance.now(); if(Math.abs(from)<.5){ off=0; place(); if(stop===1){ if(lobbyA<1) lobbyIn(); armIdle(); } return; }
     (function step(now){ if(playing||down) return; var t=Math.min(1,(now-t0)/900), e=1-Math.pow(1-t,3);
       off=from*(1-e); place(); if(t<1) raf=requestAnimationFrame(step); else if(stop===1){ if(lobbyA<1) lobbyIn(); armIdle(); } })(t0);
   }
-  var downX=0, downY=0, downT=0, downPoster=null;
+  var downX=0, downY=0, downT=0, downPoster=null, axis=null, ly=0;
   cv.addEventListener('pointerdown',function(e){ if(playing) return;
     if(focus){ if(ft>0.5) unfocus(); return; }
-    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; ly=e.clientY; axis=(vs>0||voff>0.5)?'v':null; cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
     if(!down){ var hv=focus?null:posterAt(e.clientX,e.clientY); if(hv!==hover){ hover=hv; cv.classList.toggle('poster',!!hv); draw(); } return; }
-    if(playing) return; var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+    if(playing) return;
+    if(!axis){ var mx=e.clientX-downX, my=e.clientY-downY; if(Math.max(Math.abs(mx),Math.abs(my))<4) return;
+      /* up/down only from the vault itself; otherwise it's a turn */
+      axis=(Math.abs(my)>Math.abs(mx)*1.2 && stop===0 && Math.abs(off)<2)?'v':'h'; lx=downX; ly=downY; }
+    if(axis==='v'){ var nv=performance.now(); vsetOff(voff+(e.clientY-ly)/pxScale()); ly=e.clientY; lx=e.clientX; lastMoveT=nv; return; }
+    var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function up(e){ if(!down) return; down=false; cv.classList.remove('grabbing');
     var click=e && Math.abs(e.clientX-downX)<6 && Math.abs(e.clientY-downY)<6 && performance.now()-downT<450;
     if(click && downPoster && !playing){ focusPoster(downPoster); return; }
-    if(!playing){ if(performance.now()-lastMoveT>120) vel=0; glide(); } }
+    if(playing) return;
+    if(axis==='v'){ if(vs===0 && voff<20) vsettle(); else armIdle(); return; }
+    if(performance.now()-lastMoveT>120) vel=0; glide(); }
   addEventListener('pointerup',up); addEventListener('pointercancel',up);
-  addEventListener('keydown',function(e){ if(playing||focus) return; var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
+  addEventListener('keydown',function(e){ if(playing||focus) return;
+    if(e.key==='ArrowUp' || e.key==='ArrowDown'){ var up1=e.key==='ArrowUp'; hint.classList.add('gone'); startSound();
+      if(up1 && vs<2 && stop===0 && Math.abs(off)<1) vautoplay(1); else if(!up1 && vs>0) vautoplay(-1); return; }
+    if(vs>0) return;
+    var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
 
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
   var ac=null, out=null, buf=null, started=false, muted=false, muteBtn=document.getElementById('mute');
