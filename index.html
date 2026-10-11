@@ -24,6 +24,7 @@
     padding:9px 16px 9px 13px;background:rgba(0,0,0,.49);border:1px solid rgba(240,196,110,.37);border-radius:22px;color:var(--cream);font-size:14px;font-weight:600;line-height:1.35;
     -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:none;opacity:0;transition:opacity .5s ease,transform .5s ease}
   .tip.on{opacity:1;transform:translate(-50%,0)}
+  .tip.k{transform:translate(-50%,calc(-50% + 6px))} .tip.k.on{transform:translate(-50%,-50%)}   /* pinned to the kiosk's lower panel */
   .tip svg{flex:none;color:var(--gold)}
   .tip[data-k=up] svg{animation:tipUp 1.4s ease-in-out infinite}
   .tip[data-k=right] svg{animation:tipR 1.4s ease-in-out infinite}
@@ -122,6 +123,7 @@
     return DVM[lo]>0 ? lo+(s-SV[lo])/DVM[lo] : lo; }
   /* ---- phone (portrait): the wide picture is much bigger than the screen, so dragging first looks around inside the frame
      (left, right, and a little up and down). Only when you reach the edge does the footage itself start to turn. ---- */
+  var kBox=null, TIP_AT=0.62;   /* kiosk's on-screen box in canvas pixels, refreshed every draw */
   function isPhone(){ return innerHeight>innerWidth; }
   function backCue(){ var ph=isPhone(); hint.textContent=(ph?'Tap':'Click')+' anywhere to step back'; hint.classList.toggle('top',ph); hint.classList.remove('gone'); }
   /* phones draw at 1x: the footage is 720p anyway, and it keeps every frame cheap so dragging stays smooth */
@@ -182,7 +184,8 @@
     cueOn=false;
     var tnames=Object.keys(POSTERS).concat(['kiosk']);
     for(var tn=0;tn<tnames.length;tn++){ var pn2=tnames[tn]; var q2=pn2==='kiosk'?kioskQuad():((stop===1 || strong===pn2)?posterQuad(pn2):null); if(!q2) continue;
-      var bx0=1e9,bx1=-1e9,by1=-1e9; for(var qi=0;qi<q2.length;qi+=2){ var sx=cw/2+(x0+q2[qi]*k-fcx)*sz, sy=ch/2+(y0+q2[qi+1]*k-fcy)*sz; bx0=Math.min(bx0,sx); bx1=Math.max(bx1,sx); by1=Math.max(by1,sy); }
+      var bx0=1e9,bx1=-1e9,by0=1e9,by1=-1e9; for(var qi=0;qi<q2.length;qi+=2){ var sx=cw/2+(x0+q2[qi]*k-fcx)*sz, sy=ch/2+(y0+q2[qi+1]*k-fcy)*sz; bx0=Math.min(bx0,sx); bx1=Math.max(bx1,sx); by0=Math.min(by0,sy); by1=Math.max(by1,sy); }
+      if(pn2==='kiosk') kBox={x0:bx0,x1:bx1,y0:by0,y1:by1,cw:cw,ch:ch};
       var vis=(Math.min(cw,bx1)-Math.max(0,bx0))/Math.max(1,bx1-bx0);
       var a2=0, wdt=2.5;
       if(strong===pn2){ a2=sA; wdt=4; }
@@ -528,12 +531,17 @@
     var TIPS={ up:['Try grabbing the screen and looking up','M6 14l6-6 6 6M6 20l6-6 6 6'], around:['Try looking around','M9 6l-6 6 6 6M15 6l6 6-6 6'],
                right:['Try grabbing the screen and moving right','M5 6l6 6-6 6M12 6l6 6-6 6'], left:['Try grabbing the screen and moving left','M19 6l-6 6 6 6M12 6l-6 6 6 6'] };
     function hide(){ still=performance.now(); if(!on) return; on=false; tip.classList.remove('on'); }
+    function placeTip(){ if(!kBox){ tip.classList.remove('k'); tip.style.left=tip.style.top=''; return; }
+      var r=cv.getBoundingClientRect(), fx=r.width/kBox.cw, fy=r.height/kBox.ch, top=r.top+kBox.y0*fy, bot=r.top+kBox.y1*fy,
+          tag=r.top+Math.min(kBox.ch-40*DPR(),kBox.y1+30*DPR())*fy, hh=tip.offsetHeight||44, y=Math.min(top+TIP_AT*(bot-top), tag-16-hh/2-(isPhone()?10:0));
+      tip.classList.add('k'); tip.style.left=(r.left+(kBox.x0+kBox.x1)/2*fx)+'px'; tip.style.top=y+'px'; }
+    addEventListener('resize',function(){ if(on) placeTip(); });
     ['pointerdown','keydown','wheel'].forEach(function(t){ window.addEventListener(t,hide,{capture:true,passive:true}); });
     function atVault(){ return stop===0 && vs===0 && Math.abs(off)<.5 && Math.abs(voff)<.5 && !down && !playing && !pvName && !focus && soon.hidden && pressBtn.hidden && load.classList.contains('done'); }
     setInterval(function(){ if(!atVault()){ if(on) hide(); else still=performance.now(); return; }
       if(on || performance.now()-still<5000) return;
       var ks=Object.keys(TIPS).filter(function(k){ return k!==last; }), k=ks[Math.floor(Math.random()*ks.length)]; last=k;
-      tT.textContent=TIPS[k][0]; tP.setAttribute('d',TIPS[k][1]); tip.setAttribute('data-k',k); on=true; tip.classList.add('on'); },250);
+      tT.textContent=TIPS[k][0]; tP.setAttribute('d',TIPS[k][1]); tip.setAttribute('data-k',k); placeTip(); on=true; tip.classList.add('on'); },250);
     window.__tip=function(){ return on?last:null; };   /* test hook */
   })();
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
