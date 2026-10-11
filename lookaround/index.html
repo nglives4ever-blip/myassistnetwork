@@ -117,11 +117,11 @@
       var hs=(stop===1 && !playing)?-off*k:0;
       ctx.save(); ctx.translate(x0+hs,y0); ctx.scale(k,k); ctx.transform(HD_M[0],HD_M[3],HD_M[1],HD_M[4],HD_M[2],HD_M[5]);
       ctx.globalAlpha=la; ctx.drawImage(LOBBY_HD,0,0,1280,1280*LOBBY_HD.naturalHeight/LOBBY_HD.naturalWidth); ctx.restore(); }
-    if(pvA>0 && pvName && pvEl[pvName] && pvEl[pvName].readyState>=2){
+    if(pvA>0 && pvName && pvCur && pvCur.readyState>=2){
       /* starts locked onto the HD lobby, then eases to the film's own full frame so the poster close-up isn't cropped */
       var C=pvMat(pvName), u=pvU, T=[C[0]+(1-C[0])*u, C[1]*(1-u), C[2]*(1-u)-SHIFT0*u, C[3]*(1-u), C[4]+(1-C[4])*u, C[5]*(1-u)];
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
-      ctx.globalAlpha=pvA; ctx.drawImage(pvEl[pvName],0,0,1280,720); ctx.restore(); }
+      ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720); ctx.restore(); }
     if(hover && !focus && !down && !playing){ var hq=posterQuad(hover); if(hq){ /* a soft gold edge says the poster can be clicked */
       ctx.save(); ctx.beginPath(); for(var pi=0;pi<hq.length;pi+=2){ var px=x0+hq[pi]*k, py=y0+hq[pi+1]*k; if(pi) ctx.lineTo(px,py); else ctx.moveTo(px,py); } ctx.closePath();
       ctx.strokeStyle='rgba(240,196,110,.85)'; ctx.lineWidth=2.5*k; ctx.shadowColor='rgba(240,196,110,.9)'; ctx.shadowBlur=18*k; ctx.stroke(); ctx.restore(); } }
@@ -287,34 +287,52 @@
   }
   /* ---- poster films: click a poster that has one and the camera settles on the sharp lobby, then the film plays from that exact frame.
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
-  var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3],
-                     M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] } };   /* film's first frame -> HD lobby still (1280px units) */
-  var pvName=null, pvOn=false, pvA=0, pvU=0, pvEl={}, pvRaf=0, pvSound=false;
+  var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
+           left:   { src:'cosmic',  glitch:[3.2,3.55], hold:6.2, M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
+  var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
-  function pvPrep(name){ if(pvEl[name]) return pvEl[name]; var v=document.createElement('video'); v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto';
-    [['mp4','video/mp4'],['webm','video/webm']].forEach(function(t){ var so=document.createElement('source'); so.src=PV[name].src+'.'+t[0]; so.type=t[1]; v.appendChild(so); });
+  function mkVid(src){ var v=document.createElement('video'); v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto';
+    [['mp4','video/mp4'],['webm','video/webm']].forEach(function(t){ var so=document.createElement('source'); so.src=src+'.'+t[0]; so.type=t[1]; v.appendChild(so); });
     /* kept in the page (invisible) so every browser decodes it, Safari included */
-    v.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v);
-    v.load(); pvEl[name]=v; return v; }
+    v.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v); v.load(); return v; }
+  function pvPrep(name){ if(!pvEl[name]) pvEl[name]={ f:mkVid(PV[name].src), r:mkVid(PV[name].src+'_rev') }; return pvEl[name]; }
+  /* one loop for both directions: et is where we are on the forward timeline */
+  function pvRun(name, v, rev, onEnd){
+    var dur=v.duration||8, g=PV[name].glitch, sounded=false;
+    (function loop(){ if(!pvOn) return;
+      var et=rev ? dur-v.currentTime : v.currentTime;
+      var uu=Math.max(0,Math.min(1,(et-0.3)/2.4)); pvU=uu*uu*(3-2*uu);
+      if(et>=g[0] && et<=g[1]){ if(!sounded){ sounded=true; playGlitch(0.5); } var u=(et-g[0])/(g[1]-g[0]); gA=0.4*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); }
+      else if(gA>0) gA=Math.max(0,gA-0.15);
+      if(!rev && !v._held && et>=PV[name].hold){ v._held=true; hint.textContent='Click anywhere to step back'; hint.classList.remove('gone'); }
+      draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
+  }
   function playPoster(name){
-    clearTimeout(idleTimer); cancelAnimationFrame(raf); focus=name; pvName=name; hover=null; cv.classList.add('focused'); cv.classList.remove('poster'); hint.classList.add('gone');
-    var v=pvPrep(name), from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1) lobbyIn(450);
-    var warm=null; try{ warm=v.play(); if(warm && warm.catch) warm.catch(function(){}); }catch(_){}   /* start it inside the click itself so no browser blocks it */
-    (function step(now){ var t=Math.min(1,(now-t0)/450), e=1-Math.pow(1-t,3); off=from*(1-e); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
+    clearTimeout(idleTimer); cancelAnimationFrame(raf); focus=name; pvName=name; pvBusy=true; hover=null; cv.classList.add('focused'); cv.classList.remove('poster'); hint.classList.add('gone');
+    var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1) lobbyIn(450);
+    try{ var warm=v.play(); if(warm && warm.catch) warm.catch(function(){}); }catch(_){}   /* start it inside the click itself so no browser blocks it */
+    try{ e2.r.play().then(function(){ e2.r.pause(); },function(){}); }catch(_){}           /* and unlock the way back */
+    (function step(now){ var t=Math.min(1,(now-t0)/450), ee=1-Math.pow(1-t,3); off=from*(1-ee); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
       off=0; place(); try{ v.currentTime=0; }catch(_){}
-      var failed=function(){ pvName=null; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
-      var go=function(){ pvOn=true; pvSound=false; var a0=performance.now();
-        (function loop(n2){ if(!pvOn) return; pvA=Math.min(1,(n2-a0)/250);
-          var uu=Math.max(0,Math.min(1,(v.currentTime-0.3)/2.4)); pvU=uu*uu*(3-2*uu);
-          var g=PV[name].glitch, ct=v.currentTime; if(ct>=g[0] && ct<=g[1]){ if(!pvSound){ pvSound=true; playGlitch(0.5); } var u=(ct-g[0])/(g[1]-g[0]); gA=0.4*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); } else if(gA>0 && ct>g[1]) gA=Math.max(0,gA-0.15);
-          draw(); if(v.ended){ hint.textContent='Click anywhere to step back'; hint.classList.remove('gone'); gA=0; draw(); return; } pvRaf=requestAnimationFrame(loop); })(a0); };
+      var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
+      var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
+        (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
+        pvBusy=false; v._held=false; pvRun(name, v, false, function(){}); };
       var pr=v.paused?v.play():Promise.resolve(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
-  function pvBack(){ /* glitch straight back to the lobby */
-    cancelAnimationFrame(pvRaf); hint.classList.add('gone'); playGlitch(0.8); var t0=performance.now(), v=pvEl[pvName];
-    (function step(now){ var t=(now-t0)/260; gA=Math.min(0.8,t*0.8)*(0.8+0.2*Math.random()); draw(); if(t<1){ requestAnimationFrame(step); return; }
-      pvOn=false; pvA=0; pvU=0; if(v){ try{ v.pause(); v.currentTime=0; }catch(_){} } pvName=null; focus=null; cv.classList.remove('focused'); place(); glitchOut(480); })(t0);
+  function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
+    if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone');
+    var name=pvName, f=pvEl[name].f, r=pvEl[name].r, dur=f.duration||8, at=Math.min(f.ended?dur:f.currentTime, PV[name].hold);   /* skip the still hold at the end so it moves right away */
+    var done=function(){ var a0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-a0)/300); pvA=1-t; draw(); if(t<1){ requestAnimationFrame(fade); return; }
+        pvOn=false; pvA=0; pvU=0; pvCur=null; try{ f.pause(); f.currentTime=0; r.pause(); }catch(_){} pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); place(); })(a0); };
+    var fallback=function(){ /* reverse film unavailable: glitch out instead */
+      playGlitch(0.8); var t0=performance.now(); (function step(now){ var t=(now-t0)/260; gA=Math.min(0.8,t*0.8); draw(); if(t<1){ requestAnimationFrame(step); return; }
+        pvOn=false; pvA=0; pvU=0; pvCur=null; try{ f.pause(); }catch(_){} pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); place(); glitchOut(480); })(t0); };
+    try{ f.pause(); r.currentTime=Math.max(0,dur-at); }catch(_){}
+    var started=false, start=function(){ if(started) return; if(r.seeking || r.readyState<2){ requestAnimationFrame(start); return; } started=true; pvCur=r; pvRun(name, r, true, done); };
+    var pr; try{ pr=r.play(); }catch(_){ fallback(); return; }   /* play inside the click; the frame swap waits until the seek has landed */
+    if(pr && pr.then) pr.then(start, fallback); else start();
   }
   function unfocus(){ hint.classList.add('gone'); ftTo(0,700,function(){ focus=null; cv.classList.remove('focused'); armIdle(); }); }
   function glide(){ /* let go: keep the momentum for a moment, then hold where you are */
