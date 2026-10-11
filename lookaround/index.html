@@ -81,10 +81,12 @@
     return D[lo]>0 ? lo+(s-S[lo])/D[lo] : lo; }
   /* the same for looking up: how far the picture slides down between each look-up frame */
   var DV=[0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,6,10,14,18,20,22,23,23,23,23,23,23,22,22,21,19,19,19,18,17,18,17,17,16,16,15,13,12,11,11,12,13,14,15,16,17,17,16,16,16,15,15,15,14,13,13,12,13,14,14,15,16,13,13,13,14,15,15,14,13,13,12,12,11,9,9,8,7,6,6,5,5,4,4,3,3,2,2,1,1,1,1,2,2,2,3,3,4,4,4,6,6,6,8,8,8,8,9,10,10,10,12,12,12,12,13,13,14,14,14,15,15,15,15,15,15,14,14,14,14,15,15,15,14,15,14,14,15,15,15,15,15,15,14,13,13,13,13,13,12,13,12,12,12,12,11,11,10,10,9,9,9,9,9,9,8,8,8,8,8,8,8,7,7,7,7,7,6,6,6];
-  var SV=[0]; for(var q2=0;q2<DV.length;q2++) SV.push(SV[q2]+DV[q2]);
+  /* frames 89-96 are where the two look-up clips blend into the sign close-up: give that blend a longer stretch of drag so it happens slowly under your hand */
+  var DVM=DV.slice(); for(var q3=89;q3<=96;q3++) DVM[q3]=Math.max(DVM[q3],16);
+  var SV=[0]; for(var q2=0;q2<DVM.length;q2++) SV.push(SV[q2]+DVM[q2]);
   function frameAtV(s){ if(s<=0) return 0; if(s>=SV[SV.length-1]) return SV.length-1;
     var lo=0, hi=SV.length-1; while(hi-lo>1){ var m=(lo+hi)>>1; if(SV[m]<=s) lo=m; else hi=m; }
-    return DV[lo]>0 ? lo+(s-SV[lo])/DV[lo] : lo; }
+    return DVM[lo]>0 ? lo+(s-SV[lo])/DVM[lo] : lo; }
   function kc(){ return Math.max(cv.width/1280, cv.height/720); }
 
   function nearest(arr,i){ i=Math.round(i); for(var d=0; d<arr.length; d++){ var a=arr[i-d], b=arr[i+d]; if(ready(a)) return a; if(ready(b)) return b; } return null; }
@@ -218,11 +220,11 @@
   var vel=0, lastMoveT=0, idleTimer=0;
 
   /* ---- looking up (from the vault only) ----
-     Grab and pull the room down to look up; it follows your hand one to one. Three stations: the vault, the Trinity Ark sign
+     Grab and pull the room down to look up; it follows your hand one to one. Three stations: the vault, the Trinity Ark sign (seen from below, just before the close-up)
      and the ceiling. Pull past the point and the camera carries you to the next one; push the room back up to come down. */
-  var VSTOP=[0,97,185], vs=0, voff=0, vh=0, vFade=0, VPLAY_FPS=20;
+  var VSTOP=[0,88,185], vs=0, voff=0, vh=0, vFade=0, VPLAY_FPS=20;
   var VLIMIT=[ {fwd:SV[45], back:0},
-               {fwd:SV[140]-SV[97], back:-(SV[97]-SV[60])},
+               {fwd:SV[128]-SV[88], back:-(SV[88]-SV[60])},   /* the camera stops at 88, just before the close-up; pull again to go on */
                {fwd:0, back:-(SV[185]-SV[155])} ];
   function vmode(){ return vs>0 || voff>0.01 || vPlaying || vFade>0; }
   var vPlaying=false;
@@ -285,18 +287,22 @@
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
   function pvPrep(name){ if(pvEl[name]) return pvEl[name]; var v=document.createElement('video'); v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto';
     [['mp4','video/mp4'],['webm','video/webm']].forEach(function(t){ var so=document.createElement('source'); so.src=PV[name].src+'.'+t[0]; so.type=t[1]; v.appendChild(so); });
+    /* kept in the page (invisible) so every browser decodes it, Safari included */
+    v.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v);
     v.load(); pvEl[name]=v; return v; }
   function playPoster(name){
     clearTimeout(idleTimer); cancelAnimationFrame(raf); focus=name; pvName=name; hover=null; cv.classList.add('focused'); cv.classList.remove('poster'); hint.classList.add('gone');
     var v=pvPrep(name), from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1) lobbyIn(450);
+    var warm=null; try{ warm=v.play(); if(warm && warm.catch) warm.catch(function(){}); }catch(_){}   /* start it inside the click itself so no browser blocks it */
     (function step(now){ var t=Math.min(1,(now-t0)/450), e=1-Math.pow(1-t,3); off=from*(1-e); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
       off=0; place(); try{ v.currentTime=0; }catch(_){}
+      var failed=function(){ pvName=null; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvOn=true; pvSound=false; var a0=performance.now();
         (function loop(n2){ if(!pvOn) return; pvA=Math.min(1,(n2-a0)/250);
           var uu=Math.max(0,Math.min(1,(v.currentTime-0.3)/2.4)); pvU=uu*uu*(3-2*uu);
           var g=PV[name].glitch, ct=v.currentTime; if(ct>=g[0] && ct<=g[1]){ if(!pvSound){ pvSound=true; playGlitch(0.8); } var u=(ct-g[0])/(g[1]-g[0]); gA=0.75*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); } else if(gA>0 && ct>g[1]) gA=Math.max(0,gA-0.08);
           draw(); if(v.ended){ hint.textContent='Click anywhere to step back'; hint.classList.remove('gone'); gA=0; draw(); return; } pvRaf=requestAnimationFrame(loop); })(a0); };
-      var pr=v.play(); if(pr && pr.then) pr.then(go,function(){ pvBack(); }); else go(); })(t0);
+      var pr=v.paused?v.play():Promise.resolve(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* glitch straight back to the lobby */
     cancelAnimationFrame(pvRaf); hint.classList.add('gone'); playGlitch(0.8); var t0=performance.now(), v=pvEl[pvName];
@@ -332,7 +338,7 @@
     if(axis==='v'){ var nv=performance.now(); vsetOff(voff+(e.clientY-ly)/pxScale()); ly=e.clientY; lx=e.clientX; lastMoveT=nv; return; }
     var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function up(e){ if(!down) return; down=false; cv.classList.remove('grabbing');
-    var click=e && Math.abs(e.clientX-downX)<6 && Math.abs(e.clientY-downY)<6 && performance.now()-downT<450;
+    var click=e && Math.abs(e.clientX-downX)<10 && Math.abs(e.clientY-downY)<10 && performance.now()-downT<700;
     if(click && downPoster && !playing){ if(PV[downPoster]) playPoster(downPoster); else focusPoster(downPoster); return; }
     if(playing) return;
     if(axis==='v'){ if(vs===0 && voff<20) vsettle(); else armIdle(); return; }
