@@ -20,13 +20,13 @@ Owned by 2451842 Alberta Inc. MyAssist is TM (filed, not registered), never (R).
 - `index.html` is a copy of `lookaround/index.html` with `<base href="/lookaround/">` so all its relative paths still resolve, title "MyAssist Network", no noindex, no "Vault" back button, no "Look around · test" tag.
 - Workflow: build and approve changes on /lookaround/ first, then re-copy to `index.html` keeping those four differences.
 - The old front flow (vault image, walk-up, unlock) is kept as `classic.html`, not linked.
-- Known issue: on phones the "TAP TO ENTER" cue overlaps "DRAG TO LOOK AROUND" at the bottom (also on /lookaround/).
 
 ## /lookaround/ test page (lookaround/index.html) - test bench for the home page
 Canvas frame-scrub built from Johnny's Veo clips.
 - Turn (h/, 168 frames; hm/ = 960px phone copies): drag is 1:1 with the cursor using measured per-frame shift (D/S arrays), frames slide and cross-fade. Stops: vault (frame 0) and lobby (82). Past LIMIT the camera takes over (glitch on the right route). Lobby rests on the HD still lobby.jpg, aligned to frame 82 (HD_M).
 - Look up (v/, vm/): only from the vault. Stations: vault, sign from below (88, auto stops here going up), sign close-up (97, auto stops here coming down), ceiling (185). 88 to 97 is under the hand.
 - Release: after 2s eases back to the current station. Lobby, sign and ceiling are stations: user must move back on their own.
+- Vault tips (#tip): 5s idle at the vault shows one random pill under the sound button (look up / look around / move right / move left), never the same twice running, nudging gold chevrons; any touch hides it. Replaced the old bottom "drag to look around" hint, which now only carries the step-back cue. Test hook window.__tip().
 - Sound: glitch 0.55, other effects 0.6, hum 0.2. Sound always starts on (mute lasts one visit). Cosmic film plays audio/ring-splash.mp3 (Johnny's shimmer) at 2.1s at 0.38 with fade in/out, reversed on the way back.
 - Posters (tracked quads 78-118): click plays a film starting on the HD lobby (freedom.*, cosmic.*), short soft glitch over the AI wobble, click again plays the *_rev film back to the lobby.
 - Kiosk: click plays ../video/walkup (starts exactly on frame 0), PRESS TO UNLOCK, ../video/unlock, Coming Soon, back to vault.

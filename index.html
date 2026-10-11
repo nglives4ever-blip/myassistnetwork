@@ -20,6 +20,17 @@
     font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.9);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;transition:opacity .6s ease;white-space:nowrap;text-align:center}
   .hint small{font-size:10px;letter-spacing:1.6px;opacity:.75;font-weight:600}
   .hint.gone{opacity:0}
+  .tip{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top,0px));z-index:2;transform:translate(-50%,-6px);width:max-content;max-width:min(254px,calc(100vw - 40px));display:flex;align-items:center;gap:10px;
+    padding:9px 16px 9px 13px;background:rgba(0,0,0,.49);border:1px solid rgba(240,196,110,.37);border-radius:22px;color:var(--cream);font-size:14px;font-weight:600;line-height:1.35;
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:none;opacity:0;transition:opacity .5s ease,transform .5s ease}
+  .tip.on{opacity:1;transform:translate(-50%,0)}
+  .tip svg{flex:none;color:var(--gold)}
+  .tip[data-k=up] svg{animation:tipUp 1.4s ease-in-out infinite}
+  .tip[data-k=right] svg{animation:tipR 1.4s ease-in-out infinite}
+  .tip[data-k=left] svg{animation:tipL 1.4s ease-in-out infinite}
+  .tip[data-k=around] svg{animation:tipA 2.4s ease-in-out infinite}
+  @keyframes tipUp{50%{transform:translateY(-3px)}} @keyframes tipR{50%{transform:translateX(3px)}} @keyframes tipL{50%{transform:translateX(-3px)}} @keyframes tipA{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+  @media (prefers-reduced-motion:reduce){.tip svg{animation:none!important}}
   .hint.top{bottom:auto;top:calc(37px + env(safe-area-inset-top,0px))}   /* phones: step-back cue sits level with the sound button, off the poster */
   .load{position:fixed;left:16px;right:16px;top:calc(14px + env(safe-area-inset-top,0px));height:2px;background:rgba(240,196,110,.15);border-radius:2px;overflow:hidden;transition:opacity .6s ease}
   .load i{display:block;height:100%;width:0;background:var(--gold)}
@@ -54,7 +65,8 @@
   <svg id="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
   <svg id="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
 </button>
-<div class="hint" id="hint">Hold and drag to look around</div>
+<div class="hint gone" id="hint"></div>
+<div class="tip" id="tip" role="status" aria-live="polite"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="tipP"/></svg><span id="tipT"></span></div>
 <button class="press" id="press" type="button" hidden>Press to unlock</button>
 <section class="soon" id="soon" hidden aria-label="Coming soon">
   <img class="s-logo" src="../img/myassist-logo.png" alt="" width="120" height="123">
@@ -229,7 +241,6 @@
   function lobbyOut(){ cancelAnimationFrame(lobbyRaf); var a0=lobbyA, t0=performance.now(); if(a0<=0) return;
     (function step(now){ var t=Math.min(1,(now-t0)/220); lobbyA=a0*(1-t); draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
   addEventListener('resize',fit); fit();
-  if(isPhone()) hint.textContent='Drag to look around';
   window.__pa=function(x,y){ return posterAt(x,y); }; window.__pb=function(){ return panBounds(); };
   window.__la=function(){ return {vs:vs,voff:Math.round(voff),off:Math.round(off),stop:stop,playing:playing,down:down,axis:axis,panX:Math.round(panX),panY:Math.round(panY),vh:+vh.toFixed(1),h:+h.toFixed(1),pv:pvName,pvA:+pvA.toFixed(2),focus:focus}; };   /* test hook */
 
@@ -512,6 +523,19 @@
     if(vs>0) return;
     var d=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0; if(!d) return; hint.classList.add('gone'); startSound(); if(stop===1) glitchPulse(0.3,300); autoplay(d); });
 
+  /* ---- vault tips: 5s idle at the vault shows one random tip (never the same twice running); any touch hides it ---- */
+  (function(){ var tip=document.getElementById('tip'), tT=document.getElementById('tipT'), tP=document.getElementById('tipP'), last=null, on=false, still=performance.now();
+    var TIPS={ up:['Try grabbing the screen and looking up','M6 14l6-6 6 6M6 20l6-6 6 6'], around:['Try looking around','M9 6l-6 6 6 6M15 6l6 6-6 6'],
+               right:['Try grabbing the screen and moving right','M5 6l6 6-6 6M12 6l6 6-6 6'], left:['Try grabbing the screen and moving left','M19 6l-6 6 6 6M12 6l-6 6 6 6'] };
+    function hide(){ still=performance.now(); if(!on) return; on=false; tip.classList.remove('on'); }
+    ['pointerdown','keydown','wheel'].forEach(function(t){ window.addEventListener(t,hide,{capture:true,passive:true}); });
+    function atVault(){ return stop===0 && vs===0 && Math.abs(off)<.5 && Math.abs(voff)<.5 && !down && !playing && !pvName && !focus && soon.hidden && pressBtn.hidden && load.classList.contains('done'); }
+    setInterval(function(){ if(!atVault()){ if(on) hide(); else still=performance.now(); return; }
+      if(on || performance.now()-still<5000) return;
+      var ks=Object.keys(TIPS).filter(function(k){ return k!==last; }), k=ks[Math.floor(Math.random()*ks.length)]; last=k;
+      tT.textContent=TIPS[k][0]; tP.setAttribute('d',TIPS[k][1]); tip.setAttribute('data-k',k); on=true; tip.classList.add('on'); },250);
+    window.__tip=function(){ return on?last:null; };   /* test hook */
+  })();
   /* ---- room hum (same pre-recorded loop as the vault, one buffered stream) ---- */
   var ac=null, out=null, buf=null, started=false, muted=false, muteBtn=document.getElementById('mute');
   try{ localStorage.removeItem('vaultMuted'); }catch(_){}
