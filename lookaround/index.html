@@ -311,15 +311,16 @@
   function playPoster(name){
     clearTimeout(idleTimer); cancelAnimationFrame(raf); focus=name; pvName=name; pvBusy=true; hover=null; cv.classList.add('focused'); cv.classList.remove('poster'); hint.classList.add('gone');
     var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1) lobbyIn(450);
-    try{ var warm=v.play(); if(warm && warm.catch) warm.catch(function(){}); }catch(_){}   /* start it inside the click itself so no browser blocks it */
-    try{ e2.r.play().then(function(){ e2.r.pause(); },function(){}); }catch(_){}           /* and unlock the way back */
-    (function step(now){ var t=Math.min(1,(now-t0)/450), ee=1-Math.pow(1-t,3); off=from*(1-ee); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
+    /* unlock both films inside the click itself (so no browser blocks them), then hold them at the start */
+    [v,e2.r].forEach(function(x){ x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
+    var settleMs=Math.abs(from)>2?450:0;
+    (function step(now){ var t=settleMs?Math.min(1,(now-t0)/settleMs):1, ee=1-Math.pow(1-t,3); off=from*(1-ee); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
       off=0; place(); try{ v.currentTime=0; }catch(_){}
       var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
         (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
         pvBusy=false; v._held=false; pvRun(name, v, false, function(){}); };
-      var pr=v.paused?v.play():Promise.resolve(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
+      v._go=true; var pr=v.play(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
     if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone');
@@ -331,7 +332,7 @@
         pvOn=false; pvA=0; pvU=0; pvCur=null; try{ f.pause(); }catch(_){} pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); place(); glitchOut(480); })(t0); };
     try{ f.pause(); r.currentTime=Math.max(0,dur-at); }catch(_){}
     var started=false, start=function(){ if(started) return; if(r.seeking || r.readyState<2){ requestAnimationFrame(start); return; } started=true; pvCur=r; pvRun(name, r, true, done); };
-    var pr; try{ pr=r.play(); }catch(_){ fallback(); return; }   /* play inside the click; the frame swap waits until the seek has landed */
+    var pr; r._go=true; try{ pr=r.play(); }catch(_){ fallback(); return; }   /* play inside the click; the frame swap waits until the seek has landed */
     if(pr && pr.then) pr.then(start, fallback); else start();
   }
   function unfocus(){ hint.classList.add('gone'); ftTo(0,700,function(){ focus=null; cv.classList.remove('focused'); armIdle(); }); }
@@ -353,16 +354,16 @@
   var downX=0, downY=0, downT=0, downPoster=null, axis=null, ly=0;
   cv.addEventListener('pointerdown',function(e){ if(playing) return;
     if(focus){ if(pvName){ if(pvOn) pvBack(); } else if(ft>0.5) unfocus(); return; }
-    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; zoomTo(GRAB_ZOOM,220); down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
     if(!down){ var hv=focus?null:posterAt(e.clientX,e.clientY); if(hv!==hover){ hover=hv; cv.classList.toggle('poster',!!hv); draw(); } return; }
     if(playing) return;
     if(!axis){ var mx=e.clientX-downX, my=e.clientY-downY; if(Math.max(Math.abs(mx),Math.abs(my))<4) return;
       /* up/down only from the vault itself; otherwise it's a turn */
-      axis=(Math.abs(my)>Math.abs(mx)*1.2 && stop===0 && Math.abs(off)<2)?'v':'h'; lx=downX; ly=downY;
+      axis=(Math.abs(my)>Math.abs(mx)*1.2 && stop===0 && Math.abs(off)<2)?'v':'h'; lx=downX; ly=downY; zoomTo(GRAB_ZOOM,220);
       if(axis==='h' && voff>0){ voff=0; vplace(); }   /* grabbed while it was still settling from a look up: let the turn take over cleanly */ }
     if(axis==='v'){ var nv=performance.now(); vsetOff(voff+(e.clientY-ly)/pxScale()); ly=e.clientY; lx=e.clientX; lastMoveT=nv; return; }
-    var now=performance.now(), prev=off; if(stop===1 && prev===0 && lobbyA>0.5 && e.clientX!==lx) glitchPulse(0.2,260); setOff(off-(e.clientX-lx)/pxScale()); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+    var now=performance.now(), prev=off; var nOff=off-(e.clientX-lx)/pxScale(); if(stop===1 && lobbyA>0.5 && Math.abs(prev)<12 && Math.abs(nOff)>=12) glitchPulse(0.2,260); setOff(nOff); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function up(e){ if(!down) return; down=false; cv.classList.remove('grabbing');
     var click=e && Math.abs(e.clientX-downX)<10 && Math.abs(e.clientY-downY)<10 && performance.now()-downT<700;
     if(click && downPoster && !playing){ if(PV[downPoster]) playPoster(downPoster); else focusPoster(downPoster); return; }
