@@ -20,6 +20,7 @@
     font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.9);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;transition:opacity .6s ease;white-space:nowrap;text-align:center}
   .hint small{font-size:10px;letter-spacing:1.6px;opacity:.75;font-weight:600}
   .hint.gone{opacity:0}
+  .hint.top{bottom:auto;top:calc(37px + env(safe-area-inset-top,0px))}   /* phones: step-back cue sits level with the sound button, off the poster */
   .load{position:fixed;left:16px;right:16px;top:calc(14px + env(safe-area-inset-top,0px));height:2px;background:rgba(240,196,110,.15);border-radius:2px;overflow:hidden;transition:opacity .6s ease}
   .load i{display:block;height:100%;width:0;background:var(--gold)}
   .load.done{opacity:0}
@@ -110,6 +111,7 @@
   /* ---- phone (portrait): the wide picture is much bigger than the screen, so dragging first looks around inside the frame
      (left, right, and a little up and down). Only when you reach the edge does the footage itself start to turn. ---- */
   function isPhone(){ return innerHeight>innerWidth; }
+  function backCue(){ var ph=isPhone(); hint.textContent=(ph?'Tap':'Click')+' anywhere to step back'; hint.classList.toggle('top',ph); hint.classList.remove('gone'); }
   /* phones draw at 1x: the footage is 720p anyway, and it keeps every frame cheap so dragging stays smooth */
   function DPR(){ return isPhone()?1:Math.min(window.devicePixelRatio||1,2); }
   var panX=0, panY=0, PH_Z=1.1, PH_GAIN=2, PH_LIM=0.6;   /* on a phone the footage turns faster under the finger and takes over sooner */
@@ -350,7 +352,7 @@
     var L=LIMIT[1], target=Math.max(L.back+80,Math.min(L.fwd-80,S[best]-S[LOBBY])), from=off, t0=performance.now();
     (function step(now){ var t=Math.min(1,(now-t0)/900), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; off=from+(target-from)*e; place(); if(t<1 && focus) raf=requestAnimationFrame(step); })(t0);
     ftTo(1,1100);
-    hint.textContent='Click anywhere to step back'; hint.classList.remove('gone');
+    backCue();
   }
   /* ---- poster films: click a poster that has one and the camera settles on the sharp lobby, then the film plays from that exact frame.
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
@@ -376,7 +378,7 @@
         if(!rev && et>=rg){ rung=true; playRing(false,0); } else if(rev && et<=rg+RD){ rung=true; if(et>rg) playRing(true,rg+RD-et); } }
       if(g && et>=g[0] && et<=g[1]){ if(!sounded){ sounded=true; playGlitch(0.5); } var u=(et-g[0])/(g[1]-g[0]); gA=0.4*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); }
       else if(gA>0) gA=Math.max(0,gA-0.15);
-      if(!rev && !v._held && !PV[name].noRev && et>=PV[name].hold){ v._held=true; hint.textContent='Click anywhere to step back'; hint.classList.remove('gone'); }
+      if(!rev && !v._held && !PV[name].noRev && et>=PV[name].hold){ v._held=true; backCue(); }
       draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
   }
   function playPoster(name){
