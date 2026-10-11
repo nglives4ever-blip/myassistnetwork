@@ -16,8 +16,14 @@ Owned by 2451842 Alberta Inc. MyAssist is TM (filed, not registered), never (R).
 - Phones: drag pans the wide shot left/right (natural direction), release drifts back to center; the room auto-drifts gently with a "Take a look around" hint until touched, and again after idle.
 - Future 360 room (planned, 30 ft ceiling): up/down is INVERTED (drag down looks up, drag up looks down). Left/right stays natural, never inverted.
 
-## /lookaround/ test page (lookaround/index.html) - the next front page
-Canvas frame-scrub built from Johnny's Veo clips. Not linked from the home page yet; plan is to make it the real front page once approved.
+## Home page = the look-around (live since Oct 11 2026)
+- `index.html` is a copy of `lookaround/index.html` with `<base href="/lookaround/">` so all its relative paths still resolve, title "MyAssist Network", no noindex, no "Vault" back button, no "Look around · test" tag.
+- Workflow: build and approve changes on /lookaround/ first, then re-copy to `index.html` keeping those four differences.
+- The old front flow (vault image, walk-up, unlock) is kept as `classic.html`, not linked.
+- Known issue: on phones the "TAP TO ENTER" cue overlaps "DRAG TO LOOK AROUND" at the bottom (also on /lookaround/).
+
+## /lookaround/ test page (lookaround/index.html) - test bench for the home page
+Canvas frame-scrub built from Johnny's Veo clips.
 - Turn (h/, 168 frames; hm/ = 960px phone copies): drag is 1:1 with the cursor using measured per-frame shift (D/S arrays), frames slide and cross-fade. Stops: vault (frame 0) and lobby (82). Past LIMIT the camera takes over (glitch on the right route). Lobby rests on the HD still lobby.jpg, aligned to frame 82 (HD_M).
 - Look up (v/, vm/): only from the vault. Stations: vault, sign from below (88, auto stops here going up), sign close-up (97, auto stops here coming down), ceiling (185). 88 to 97 is under the hand.
 - Release: after 2s eases back to the current station. Lobby, sign and ceiling are stations: user must move back on their own.

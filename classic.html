@@ -1,0 +1,458 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+<title>MyAssist Network</title>
+<link rel="icon" type="image/png" href="img/myassist-icon.png">
+<link rel="apple-touch-icon" href="img/myassist-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* MyAssist Network: private entrance, then the project hub. Phone-first, widens on desktop.
+   Colours come from the MyAssist wordmark: navy ASSIST, blue MY, on a clean light ground. */
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --line:#DDE1EA;
+  --navy:#121A33; --blue:#2457C5; --blue-tint:#E8EEFB;
+  --muted:#5D6577; --danger:#B4382B;
+  --font:'Figtree',ui-rounded,system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--navy);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:520px;min-height:100%;margin:0 auto;padding-inline:20px;padding-block:36px 24px;display:flex;flex-direction:column}
+img{max-width:100%;display:block}
+
+/* entrance */
+.gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center}
+.brand{display:flex;flex-direction:column;align-items:center;gap:18px}
+.app-icon{width:84px;height:84px;border-radius:22%;box-shadow:0 10px 30px rgba(18,26,51,.18)}
+.wordmark{width:min(260px,72vw);height:auto}
+.hero-logo{width:min(210px,58vw);height:auto;filter:drop-shadow(0 16px 28px rgba(18,26,51,.22))}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:2.6px;text-transform:uppercase;color:var(--muted)}
+.card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 2px 16px rgba(18,26,51,.05)}
+form{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px;text-align:left}
+.field label{font-size:13px;font-weight:600;color:var(--navy)}
+.field input{height:50px;border-radius:14px;border:1px solid var(--line);background:var(--ground);color:var(--navy);padding:0 16px;font:inherit;font-size:16px}
+.field input:focus{outline:2px solid var(--blue);outline-offset:1px;background:#fff}
+.enter{height:52px;border-radius:14px;border:0;background:var(--navy);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer;margin-top:2px}
+.enter:hover{background:#1c2748}
+.enter:disabled{opacity:.55;cursor:default}
+.enter:focus-visible,.out:focus-visible,.peek:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.err{min-height:20px;margin:0;font-size:14px;color:var(--danger)}
+.peek{background:none;border:0;font:inherit;font-size:13px;color:var(--blue);text-decoration:underline;cursor:pointer;padding:4px}
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.foot .pow{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.foot .pow b{color:var(--navy)}
+.foot .tm{font-size:11px;line-height:1.6;color:#8A90A0;margin:0}
+
+/* hub */
+.hub{flex:1;display:flex;flex-direction:column;gap:22px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mini{display:flex;align-items:center;gap:10px;min-width:0}
+.mini .app-icon{width:40px;height:auto;border-radius:0;box-shadow:none}
+.mini .wordmark{width:128px}
+.out{display:flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:600;color:var(--navy);background:var(--surface);border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;flex:none}
+.hello h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.2px}
+.hello p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.tiles{display:grid;gap:12px}
+.tile{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+.tile:hover{border-color:#C3CADB;box-shadow:0 6px 20px rgba(18,26,51,.07)}
+.tile:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tx b{font-size:16px}
+.tx span{font-size:13px;color:var(--muted)}
+.pill{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.pill.live{background:#E3F4EA;color:#1E6B40}
+.pill.build{background:var(--blue-tint);color:var(--blue)}
+.hub .foot{margin-top:auto;padding-top:28px}
+@media (min-width:860px){
+  .wrap{max-width:920px}
+  .tiles{grid-template-columns:1fr 1fr}
+  .hero-logo{width:240px}
+  .wordmark{width:300px}
+}
+@media (prefers-reduced-motion:reduce){.tile{transition:none}}
+
+/* ===== the vault ===== */
+.vault{position:fixed;inset:0;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:#0b0a08;z-index:5;color:#F3E6C8}
+.scene{position:absolute;inset:0;transform-origin:0 0;will-change:transform;touch-action:none}
+.scene.glide img{transition:object-position .45s cubic-bezier(.4,0,.2,1)}
+.lookhint{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,215,154,.85);text-shadow:0 2px 8px rgba(0,0,0,.8);pointer-events:none;transition:opacity .6s ease;white-space:nowrap}
+.lookhint.gone{opacity:0}
+.vault.walking .lookhint,.vault.zoomed .lookhint{display:none}
+@media (prefers-reduced-motion:reduce){.scene.glide{transition:none}}
+.scene img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;max-width:none;user-select:none;-webkit-user-drag:none}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%);pointer-events:none;transition:opacity 1.2s ease}
+.vault.zoomed .shade{opacity:.3}
+.hot{position:absolute;border:0;background:transparent;cursor:pointer;padding:0;border-radius:10px}
+.hot .ring{position:absolute;inset:-6px;border-radius:12px;border:2px solid rgba(240,196,110,.85);box-shadow:0 0 22px rgba(240,196,110,.55);animation:pulse 2.2s ease-in-out infinite}
+.hot .hint{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#F5D79A;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+.hot:focus-visible{outline:2px solid #F5D79A;outline-offset:8px}
+.vault.zoomed .hot{display:none}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+.terminal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(400px,calc(100% - 32px));background:linear-gradient(180deg,rgba(14,16,18,.92),rgba(8,9,11,.95));border:1px solid rgba(240,196,110,.35);border-radius:18px;padding:22px;box-shadow:0 0 60px rgba(240,196,110,.18),inset 0 0 40px rgba(240,196,110,.05);animation:boot .5s ease both}
+@keyframes boot{from{opacity:0;filter:brightness(2) blur(4px)}to{opacity:1;filter:none}}
+.terminal form{display:flex;flex-direction:column;gap:14px}
+.t-head{display:flex;align-items:center;gap:10px;color:#F0C46E;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.terminal .field label{color:#C9B48A}
+.terminal .field input{background:rgba(255,255,255,.04);border-color:rgba(240,196,110,.25);color:#F3E6C8}
+.terminal .field input:focus{outline-color:#F0C46E;background:rgba(255,255,255,.07)}
+.terminal .enter{background:linear-gradient(180deg,#F0C46E,#C9963F);color:#1a1206}
+.terminal .enter:hover{background:linear-gradient(180deg,#F5D08A,#D3A24E)}
+.terminal .err{color:#FF9C8A}
+.terminal.denied{animation:shake .4s ease;border-color:rgba(255,110,90,.7);box-shadow:0 0 50px rgba(255,90,70,.3)}
+.terminal.granted{border-color:rgba(120,230,150,.8);box-shadow:0 0 60px rgba(120,230,150,.35)}
+.terminal.granted .t-head{color:#8EF0A8}
+@keyframes shake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 8px),-50%)}75%{transform:translate(calc(-50% + 8px),-50%)}}
+.vbtn{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.45);border:1px solid rgba(240,196,110,.35);color:#F3E6C8;border-radius:999px;padding:9px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px)}
+.vbtn:focus-visible{outline:2px solid #F0C46E;outline-offset:3px}
+.vbtn.back{left:14px}
+.vbtn.mute{right:14px;padding:9px}
+.vbtn.mute.is-muted{color:rgba(243,230,200,.45);border-color:rgba(243,230,200,.18);background:rgba(0,0,0,.6)}
+.vfoot{position:absolute;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0;padding-inline:16px;text-align:center;font-size:10px;letter-spacing:.4px;color:rgba(243,230,200,.55)}
+.flash{position:absolute;inset:0;background:radial-gradient(circle at center,#fff6dc 0%,#f0c46e 45%,rgba(240,196,110,0) 75%);opacity:0;pointer-events:none;transition:opacity .9s ease}
+.vault.opening .flash{opacity:1}
+.vault.gone{opacity:0;transition:opacity .8s ease}
+@media (prefers-reduced-motion:reduce){.scene,.shade,.flash{transition:none}.hot .ring{animation:none}}
+
+/* walk-up video + live screen */
+.walk{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;max-width:none;opacity:0;transition:opacity .35s ease;pointer-events:none;background:#0b0a08}
+.vault.walking .walk,.vault.zoomed .walk{opacity:1}
+.endframe{transition:none}.vault.walking .endframe{opacity:0}
+.unlockv{transition:opacity .15s ease}.vault.walking .unlockv,.vault.zoomed .unlockv{opacity:0}.vault.unlocking .unlockv{opacity:1}
+.vault.unlocking .press,.vault.unlocking .back{display:none}
+.vault.walking .hot,.vault.zoomed .hot{display:none}
+.skip{position:absolute;inset:0;background:transparent;border:0;cursor:pointer}
+.press{position:absolute;display:grid;place-items:center;font:inherit;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#F6E7C4;
+  background:linear-gradient(180deg,rgba(26,22,16,.96),rgba(12,11,9,.96));border:2px solid rgba(240,196,110,.9);
+  clip-path:polygon(4% 0,96% 0,100% 18%,100% 82%,96% 100%,4% 100%,0 82%,0 18%);
+  box-shadow:0 0 24px rgba(240,196,110,.45);cursor:pointer;animation:glow 2.2s ease-in-out infinite;padding:0}
+.press:focus-visible{outline:2px solid #F5D79A;outline-offset:6px}
+.press::before{content:"";position:absolute;inset:3px;clip-path:inherit;border:1px solid rgba(240,196,110,.35)}
+@keyframes glow{0%,100%{filter:brightness(.9)}50%{filter:brightness(1.25)}}
+.terminal.on-screen{top:auto;transform:translateX(-50%)}
+.terminal.on-screen.denied{animation:shake2 .4s ease}
+@keyframes shake2{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 8px))}75%{transform:translateX(calc(-50% + 8px))}}
+@media (prefers-reduced-motion:reduce){.press{animation:none}.walk{transition:none}}
+/* coming soon (shown instead of the hub until the hub is ready) */
+.soon{position:fixed;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));
+  background:radial-gradient(ellipse at center,#fffdf6 0%,#f7f1e3 55%,#efe6d2 100%);color:var(--navy);animation:soonIn 1.2s ease both}
+@keyframes soonIn{from{opacity:0;filter:brightness(1.6)}to{opacity:1;filter:none}}
+.soon .s-logo{width:min(120px,30vw);height:auto;filter:drop-shadow(0 14px 26px rgba(18,26,51,.18))}
+.soon .s-mark{width:min(240px,64vw);height:auto}
+.soon h1{margin:6px 0 0;font-size:clamp(30px,8vw,52px);font-weight:800;letter-spacing:.14em;text-transform:uppercase;background:linear-gradient(180deg,#C9963F,#8A6424);-webkit-background-clip:text;background-clip:text;color:transparent}
+.soon p{margin:0;font-size:14px;letter-spacing:2.4px;text-transform:uppercase;color:var(--muted)}
+.soon .s-foot{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:11px;color:#8A90A0;padding:0 16px}
+.soon .s-back{margin-top:10px;background:none;border:1px solid rgba(138,100,36,.35);color:#8A6424;font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer}
+.soon .s-back:focus-visible{outline:2px solid #C9963F;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.soon{animation:none}}
+</style>
+
+
+<!-- THE VAULT (entrance) -->
+<section class="vault" id="vault" hidden aria-label="MyAssist private network entrance">
+  <div class="scene" id="scene"><img id="vaultImg" src="img/vault.jpg" alt="The MyAssist vault door with a login kiosk in front of it"></div>
+  <video class="walk" id="walk" poster="img/vault.jpg" muted playsinline preload="auto" aria-hidden="true"><source src="video/walkup.mp4" type="video/mp4"><source src="video/walkup.webm" type="video/webm"></video>
+  <img class="walk endframe" id="endFrame" src="img/screen.jpg" alt="">
+  <video class="walk unlockv" id="unlockVid" playsinline preload="auto" aria-hidden="true"><source src="video/unlock.mp4" type="video/mp4"><source src="video/unlock.webm" type="video/webm"></video>
+  <button class="skip" id="skip" type="button" aria-label="Skip to the kiosk screen" hidden></button>
+  <div class="shade" id="shade"></div>
+  <button class="press" id="press" type="button" hidden>Press to unlock</button>
+  <div class="lookhint" id="lookHint" hidden aria-hidden="true"><span>&#9664;</span>Take a look around<span>&#9654;</span></div>
+  <button class="hot" id="hot" type="button" aria-label="Open the login screen"><span class="ring"></span><span class="hint">Tap the screen</span></button>
+
+  <div class="terminal" id="terminal" hidden>
+    <form id="loginForm" autocomplete="on">
+      <div class="t-head">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path id="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <span id="tStatus">Identify yourself</span>
+      </div>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <button class="enter" id="enterBtn" type="submit">Unlock</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+  </div>
+
+  <button class="vbtn back" id="backBtn" type="button" hidden>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back
+  </button>
+  <button class="vbtn mute" id="muteBtn" type="button" aria-label="Sound off" aria-pressed="false">
+    <svg id="icoOn" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    <svg id="icoOff" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
+  </button>
+  <p class="vfoot">MyAssist™ is a trademark of Trinity Ark Studios. © <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</p>
+  <div class="flash" id="flash"></div>
+</section>
+<section class="soon" id="soon" hidden aria-label="Coming soon">
+  <img class="s-logo" src="img/myassist-logo.png" alt="" width="120" height="123">
+  <img class="s-mark" src="img/myassist-wordmark.png" alt="MyAssist" width="240" height="43">
+  <h1>Coming Soon</h1>
+  <p>MyAssist Network</p>
+  <button class="s-back" id="soonBack" type="button">Back to the vault</button>
+  <span class="s-foot">MyAssist&trade; is a trademark of Trinity Ark Studios. &copy; <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</span>
+</section>
+<div class="wrap">
+
+  <!-- BEHIND THE DOOR -->
+  <main class="hub" id="hub" hidden>
+    <div class="top">
+      <div class="mini">
+        <img class="app-icon" src="img/myassist-logo.png" alt="" width="40" height="41">
+        <img class="wordmark" src="img/myassist-wordmark.png" alt="MyAssist" width="128" height="23">
+      </div>
+      <button class="out" id="outBtn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign out
+      </button>
+    </div>
+    <div class="hello"><h1 id="hello">Welcome back, Johnny</h1><p>Your projects</p></div>
+
+    <!-- Project tiles: edit the href when each app goes live -->
+    <nav class="tiles" aria-label="Projects">
+      <a class="tile" href="https://yodi.myassistnetwork.com">
+        <span class="ic" style="background:#E3F1E7;color:#2F6B45"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8z"/></svg></span>
+        <span class="tx"><b>YODI</b><span>Lead revival agent · Sterling Homes</span></span>
+        <span class="pill build">Building</span>
+      </a>
+      <a class="tile" href="https://canba.myassistnetwork.com">
+        <span class="ic" style="background:#F3E9D8;color:#8A5E22"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg></span>
+        <span class="tx"><b>Canba Construction</b><span>Multi-project tracker</span></span>
+        <span class="pill live">Live</span>
+      </a>
+      <a class="tile" href="#">
+        <span class="ic" style="background:var(--blue-tint);color:var(--blue)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg></span>
+        <span class="tx"><b>Link Insurance</b><span>Broker workspace</span></span>
+        <span class="pill build">Building</span>
+      </a>
+    </nav>
+    <div class="foot">
+      <span class="pow">Powered by <b>Autolink Dealer Network</b></span>
+      <p class="tm">MyAssist™ · © <span class="yr">2026</span> 2451842 Alberta Inc. All rights reserved.</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+/* ===== SETTINGS: paste from Supabase > Project Settings > API (project: myassist-network) =====
+   The "anon public" key is safe to put here. NEVER paste the service_role key. */
+/* false = show Coming Soon after the unlock instead of the project hub */
+var SHOW_HUB = false;
+var SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL';
+var SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_PUBLIC_KEY';
+/* Where the kiosk screen sits in img/vault.jpg, as fractions of the picture (x, y, width, height) */
+var SCREEN = { x:0.447, y:0.612, w:0.108, h:0.096 };
+/* Where PRESS TO UNLOCK and the lock circle sit in the last frame of the walk-up video (1920x1080) */
+var PRESS = { x:0.349, y:0.824, w:0.302, h:0.092 };
+var LOCK  = { x:0.323, y:0.155, w:0.354, h:0.630 };
+/* ============================================================================================ */
+
+(function(){
+  var vault=document.getElementById('vault'), scene=document.getElementById('scene'), img=document.getElementById('vaultImg');
+  var hot=document.getElementById('hot'), term=document.getElementById('terminal'), back=document.getElementById('backBtn');
+  var hub=document.getElementById('hub'), form=document.getElementById('loginForm'), err=document.getElementById('err');
+  var btn=document.getElementById('enterBtn'), status=document.getElementById('tStatus');
+  document.querySelectorAll('.yr').forEach(function(e){ e.textContent=new Date().getFullYear(); });
+
+  /* ---- where the screen lands on the visible page (image is "cover" fitted) ---- */
+  /* ---- look around: drag the wide shot left and right on narrow screens ---- */
+  var panX=0, lookHint=document.getElementById('lookHint'), stopBack=function(){};
+  function canPan(){ return !vault.classList.contains('walking') && !vault.classList.contains('zoomed') && !vault.hidden; }
+  function setPan(x){ var m=screenRect().maxPan; panX=Math.max(-m,Math.min(m,x)); applyPan(); var r=screenRect(); hot.style.left=r.x+'px'; }
+  (function(){
+    var down=false, sx=0, sp=0, lx=0, lt=0, vel=0, dragged=false, raf=0;
+    function glideStop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+    stopBack=glideStop;
+    vault.addEventListener('pointerdown',function(e){
+      touched();
+      if(!canPan() || screenRect().maxPan<4 || e.target.closest('.vbtn')) return;
+      glideStop(); down=true; dragged=false; sx=lx=e.clientX; sp=panX; lt=performance.now(); vel=0; scene.classList.remove('glide');
+    });
+    window.addEventListener('pointermove',function(e){
+      if(!down) return; var dx=e.clientX-sx;
+      if(!dragged && Math.abs(dx)>8){ dragged=true; if(lookHint) lookHint.classList.add('gone'); }
+      if(dragged){ var now=performance.now(); vel=(e.clientX-lx)/Math.max(1,now-lt); lx=e.clientX; lt=now; setPan(sp+dx); }
+    });
+    function up(){ if(!down) return; down=false;
+      if(dragged || Math.abs(panX)>2){ /* let go: drift slowly back to facing the door */
+        var from=panX, t0=performance.now(), dur=1400;
+        (function step(now){ var t=Math.min(1,(now-t0)/dur), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+          setPan(from*(1-e)); if(t<1 && canPan()){ raf=requestAnimationFrame(step); } else { raf=0; } })(t0); }
+      touched(); }
+    window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up);
+    /* a drag that ends on the kiosk is not a tap */
+    hot.addEventListener('click',function(e){ if(dragged){ e.stopImmediatePropagation(); e.preventDefault(); dragged=false; } },true);
+  })();
+  function applyPan(){ var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438;
+    var k=Math.max(vw/iw, vh/ih), ox=(vw-iw*k)/2; img.style.objectPosition=panX?((ox+panX)+'px 50%'):''; }
+  /* ---- invitation: the room drifts gently on its own until someone grabs it, and again after a quiet spell ---- */
+  var driftRaf=0, idleTimer=0;
+  function stopDrift(){ if(driftRaf){ cancelAnimationFrame(driftRaf); driftRaf=0; } }
+  function startDrift(){
+    var m=screenRect().maxPan; if(reduce || driftRaf || !canPan() || m<40) return;
+    var amp=Math.min(m*0.35,130), period=10000, t0=performance.now(), base=panX;
+    if(lookHint){ lookHint.classList.remove('gone'); }
+    (function step(now){ if(!canPan()){ driftRaf=0; return; }
+      var t=now-t0, ramp=Math.min(1,t/2500), x=amp*Math.sin(t/period*2*Math.PI)*ramp;
+      setPan(base*(1-ramp)+x); driftRaf=requestAnimationFrame(step); })(t0);
+  }
+  function touched(){ stopDrift(); if(lookHint) lookHint.classList.add('gone'); clearTimeout(idleTimer); idleTimer=setTimeout(function(){ if(canPan()) startDrift(); },14000); }
+  function centerThen(fn){
+    stopDrift(); stopBack(); clearTimeout(idleTimer); /* glide back to the middle so the walk-up starts exactly where the picture is */
+    if(Math.abs(panX)<2){ setPan(0); fn(); return; }
+    scene.classList.add('glide'); setPan(0); setTimeout(function(){ scene.classList.remove('glide'); fn(); },460);
+  }
+  function screenRect(){
+    var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438;
+    var k=Math.max(vw/iw, vh/ih), dw=iw*k, dh=ih*k, ox=(vw-dw)/2, oy=(vh-dh)/2;
+    return { x:ox+panX+SCREEN.x*dw, y:oy+SCREEN.y*dh, w:SCREEN.w*dw, h:SCREEN.h*dh, vw:vw, vh:vh, maxPan:Math.max(0,(dw-vw)/2) };
+  }
+  /* map a box from the 1920x1080 video frame onto the page (video is "cover" fitted) */
+  function frameRect(b){
+    var vw=vault.clientWidth, vh=vault.clientHeight, k=Math.max(vw/1920, vh/1080), dw=1920*k, dh=1080*k, ox=(vw-dw)/2, oy=(vh-dh)/2;
+    return { x:ox+b.x*dw, y:oy+b.y*dh, w:b.w*dw, h:b.h*dh, vw:vw, vh:vh };
+  }
+  var press=document.getElementById('press'), walk=document.getElementById('walk'), skip=document.getElementById('skip');
+  function placePress(){
+    var r=frameRect(PRESS), w=Math.min(r.w, r.vw-48), h=Math.max(48, Math.min(r.h, w*0.2));
+    press.style.width=w+'px'; press.style.height=h+'px'; press.style.left=(r.vw-w)/2+'px';
+    press.style.top=Math.min(r.y, r.vh-h-44)+'px'; press.style.fontSize=Math.max(14, Math.min(h*0.34, 28))+'px';
+    var L=frameRect(LOCK), th=term.offsetHeight||300; term.style.top=Math.max(64, Math.min(L.y+L.h/2-th/2, r.vh-th-56))+'px';
+  }
+  function placeHot(){ setPanBounds(); var r=screenRect(); hot.style.left=r.x+'px'; hot.style.top=r.y+'px'; hot.style.width=r.w+'px'; hot.style.height=r.h+'px'; placePress(); }
+  function setPanBounds(){ var m=Math.max(0,(function(){ var vw=vault.clientWidth, vh=vault.clientHeight, iw=img.naturalWidth||2576, ih=img.naturalHeight||1438; var k=Math.max(vw/iw, vh/ih); return (iw*k-vw)/2; })());
+    if(Math.abs(panX)>m){ panX=panX<0?-m:m; } applyPan();
+    if(lookHint){ lookHint.hidden = m<40; } }
+  setTimeout(startDrift,1400);
+  img.addEventListener('load',placeHot); window.addEventListener('resize',placeHot); placeHot();
+
+  /* ---- sound: one audio engine, pre-recorded files only.
+     Everything (hum, footsteps, clicks, ding, unlock) plays through a single AudioContext with
+     large "playback" buffers and is flagged as media playback. Live-synthesized sound and mixing
+     several audio players at once is what stuttered over wireless CarPlay and Bluetooth. ---- */
+  var SND={ hum:'audio/hum-loop.wav', steps:'audio/walk-steps.mp3', room:'audio/walk-room.mp3',
+            press:'audio/press.wav', denied:'audio/denied.wav', ding:'audio/ding.wav', unlock:'audio/unlock.mp3' };
+  var ac=null, out=null, master=null, humF=null, muted=false, bufs={}, raw={}, walkBus=null, humWanted=false, humStarted=false;
+  try{ muted = localStorage.getItem('vaultMuted')==='1'; }catch(e){}
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  Object.keys(SND).forEach(function(k){ raw[k]=fetch(SND[k]).then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }); });
+  function ensureCtx(){
+    if(ac) return;
+    try{
+      var C=window.AudioContext||window.webkitAudioContext;
+      try{ ac=new C({latencyHint:'playback'}); }catch(e){ ac=new C(); }
+      out=ac.createGain(); out.gain.value=muted?0:1; out.connect(ac.destination);
+      master=ac.createGain(); master.gain.value=0; humF=ac.createBiquadFilter(); humF.type='lowpass'; humF.frequency.value=380;
+      master.connect(humF); humF.connect(out);
+      Object.keys(raw).forEach(function(k){
+        raw[k].then(function(a){ if(!a) return null; return new Promise(function(res,rej){ ac.decodeAudioData(a.slice(0),res,rej); }); })
+          .then(function(b){ if(b){ bufs[k]=b; if(k==='hum') startLoop(); } }).catch(function(){});
+      });
+    }catch(e){ ac=null; }
+  }
+  function wake(){ if(ac && ac.state!=='running'){ try{ ac.resume(); }catch(e){} } }
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden && humWanted) wake(); });
+  ensureCtx(); /* created quietly up front so every file is decoded and ready before the first tap */
+  function startLoop(){ if(humStarted || !humWanted || !bufs.hum) return; humStarted=true;
+    var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs.hum; s.loop=true; g.gain.value=.54; s.connect(g); g.connect(master); s.start(); }
+  function startHum(){ ensureCtx(); if(!ac) return; wake();
+    if(!humWanted){ humWanted=true; startLoop(); var t=ac.currentTime; master.gain.setValueAtTime(0,t); master.gain.linearRampToValueAtTime(.5,t+1.5); } }
+  function play(k,vol,dest){ if(!ac || !bufs[k]) return null; wake();
+    var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=bufs[k]; g.gain.value=vol==null?1:vol; s.connect(g); g.connect(dest||out); s.start(); return s; }
+  function swell(sec){ /* hum opens up as you approach the kiosk */
+    if(!ac) return; var t=ac.currentTime;
+    master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.85,t+sec);
+    humF.frequency.cancelScheduledValues(t); humF.frequency.setValueAtTime(humF.frequency.value,t); humF.frequency.exponentialRampToValueAtTime(1100,t+sec);
+  }
+  function settle(){ if(!ac) return; var t=ac.currentTime;
+    master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value,t); master.gain.linearRampToValueAtTime(.5,t+1.2);
+    humF.frequency.cancelScheduledValues(t); humF.frequency.setValueAtTime(humF.frequency.value,t); humF.frequency.exponentialRampToValueAtTime(380,t+1.2); }
+  function footsteps(){ /* your Veo walk-up audio (steps + room layers), synced to the clip */
+    if(!ac) return; stopSteps(); walkBus=ac.createGain(); walkBus.connect(out); play('steps',1,walkBus); play('room',1,walkBus); }
+  function stopSteps(){ if(!walkBus) return; var b=walkBus, t=ac.currentTime; walkBus=null;
+    b.gain.setValueAtTime(b.gain.value,t); b.gain.linearRampToValueAtTime(0,t+.25); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },400); }
+  function sPress(){ play('press',1); }
+  function sDenied(){ play('denied',1); }
+  function sDing(){ play('ding',1); }
+  function sUnlock(){ play('unlock',1); }
+  function sGranted(){ sDing(); }
+  function sDoor(){}
+  var muteBtn=document.getElementById('muteBtn');
+  function paintMute(){ /* SVG icons ignore .hidden, so toggle the attribute itself */ document.getElementById('icoOn').toggleAttribute('hidden',muted); document.getElementById('icoOff').toggleAttribute('hidden',!muted); muteBtn.classList.toggle('is-muted',muted); muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
+  muteBtn.addEventListener('click',function(){ muted=!muted; try{ localStorage.setItem('vaultMuted',muted?'1':'0'); }catch(e){} if(!muted) startHum(); if(out) out.gain.value=muted?0:1; paintMute(); });
+  paintMute();
+
+  /* ---- the walk-up ---- */
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function arrive(){ /* walk-up finished: rest on the last frame, live button over the painted one */
+    if(vault.classList.contains('zoomed')) return;
+    skip.hidden=true; stopSteps(); vault.classList.remove('walking'); vault.classList.add('zoomed');
+    try{ if(walk.duration) walk.currentTime=Math.max(0,walk.duration-0.05); walk.pause(); }catch(e){}
+    placePress(); press.hidden=false; back.hidden=false; settle();
+  }
+  function openScreen(){
+    startHum(); sPress(); term.classList.add('on-screen');
+    centerThen(beginWalk);
+  }
+  function beginWalk(){
+    if(reduce){ arrive(); return; }
+    swell(7.5); footsteps(8);
+    vault.classList.add('walking'); skip.hidden=false;
+    try{ walk.currentTime=0; var p=walk.play(); if(p&&p.catch) p.catch(arrive); }catch(e){ arrive(); }
+  }
+  walk.addEventListener('ended',arrive);
+  skip.addEventListener('click',arrive);
+  /* PRESS TO UNLOCK: no password for now, straight into the unlock clip */
+  var unlockVid=document.getElementById('unlockVid'), unlocked=false;
+  function finishUnlock(){ if(unlocked) return; unlocked=true; showHub(); }
+  press.addEventListener('click',function(){
+    press.hidden=true; back.hidden=true; sPress(); sDing();
+    unlocked=false; vault.classList.add('unlocking'); unlockVid.muted=true;
+    if(reduce){ finishUnlock(); return; }
+    try{ unlockVid.currentTime=0; sUnlock(); var pr=unlockVid.play(); if(pr&&pr.catch) pr.catch(function(){ vault.classList.add('opening'); setTimeout(finishUnlock,900); }); }
+    catch(e){ finishUnlock(); }
+    setTimeout(finishUnlock,9500); /* safety net */
+  });
+  unlockVid.addEventListener('ended',finishUnlock);
+  function closeScreen(){ setTimeout(startDrift,1500); stopSteps(); settle(); term.hidden=true; press.hidden=true; skip.hidden=true; vault.classList.remove('zoomed','walking');
+    try{ walk.pause(); walk.currentTime=0; }catch(e){} back.hidden=true; err.textContent=''; }
+  hot.addEventListener('click',openScreen);
+  back.addEventListener('click',closeScreen);
+
+  function deny(msg){ term.classList.remove('denied'); void term.offsetWidth; term.classList.add('denied'); status.textContent='Access denied'; err.textContent=msg; sDenied(); }
+  function grant(){
+    term.classList.remove('denied'); term.classList.add('granted'); status.textContent='Access granted';
+    document.getElementById('shackle').setAttribute('d','M8 11V7a4 4 0 0 1 7.5-1.9'); sGranted();
+    setTimeout(function(){ term.hidden=true; vault.classList.add('opening'); sDoor(); },700);   /* placeholder for the door-opening video */
+    setTimeout(function(){ showHub(); },1800);
+  }
+  function showHub(){ if(SHOW_HUB){ hub.hidden=false; } else { document.getElementById('soon').hidden=false; } vault.classList.add('gone'); setTimeout(function(){ vault.hidden=true; vault.classList.remove('gone','opening','zoomed','walking','unlocking'); try{ unlockVid.pause(); unlockVid.currentTime=0; }catch(e){} press.hidden=true; back.hidden=true; try{ walk.currentTime=0; }catch(e){} term.classList.remove('granted'); status.textContent='Identify yourself'; },800); if(master){ master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value,ac.currentTime); master.gain.linearRampToValueAtTime(0,ac.currentTime+2.5); } }
+  function showVault(){ hub.hidden=true; vault.hidden=false; back.hidden=true; term.hidden=true; placeHot(); if(master){ settle(); } setTimeout(startDrift,1500); }
+
+  document.getElementById('soonBack').addEventListener('click',function(){ document.getElementById('soon').hidden=true; showVault(); });
+  var sb=null;
+  if(window.supabase && SUPABASE_URL.indexOf('PASTE')!==0){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); err.textContent='';
+    var em=document.getElementById('email').value.trim(), pw=document.getElementById('password').value;
+    if(!sb){ /* preview mode, no Supabase yet: any entry opens the door so you can test the flow */
+      if(!em||!pw){ deny('Enter an email and password.'); return; } grant(); return; }
+    btn.disabled=true; btn.textContent='Checking...';
+    sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){
+      if(r.error){ deny('That email and password didn\'t match.'); } else { grant(); }
+    }).finally(function(){ btn.disabled=false; btn.textContent='Unlock'; });
+  });
+  document.getElementById('outBtn').addEventListener('click',function(){ if(sb){ sb.auth.signOut(); } showVault(); });
+
+  if(sb){ sb.auth.getSession().then(function(r){ if(r.data.session){ hub.hidden=false; } else { showVault(); } }); }
+  else { showVault(); }
+})();
+</script>
+
+</body></html>
