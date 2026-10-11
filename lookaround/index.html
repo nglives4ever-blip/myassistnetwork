@@ -380,7 +380,7 @@
       draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
   }
   function playPoster(name){
-    clearTimeout(idleTimer); cancelAnimationFrame(raf); flashName=name; flashT0=performance.now(); panHome(isPhone()?650:450); focus=name; pvName=name; pvBusy=true; hover=null; cv.classList.add('focused'); cv.classList.remove('poster'); hint.classList.add('gone');
+    clearTimeout(idleTimer); cancelAnimationFrame(raf); flashName=name; flashT0=performance.now(); panHome(isPhone()?650:450); focus=name; pvName=name; pvBusy=true; hover=null; cv.classList.add('focused'); cv.classList.remove('poster','point'); hint.classList.add('gone');
     var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1 && PV[name].base!=='frame') lobbyIn(450);
     if(name==='walk') pvExtra();
     /* unlock both films inside the click itself (so no browser blocks them), then hold them at the start */
@@ -456,14 +456,16 @@
   var fistT=0; function fist(){ clearTimeout(fistT); cv.classList.add('grabbing'); }
   function unfist(){ clearTimeout(fistT); fistT=setTimeout(function(){ if(!down) cv.classList.remove('grabbing'); },220); }
   addEventListener('pointerup',function(){ if(!down) unfist(); });
-  cv.addEventListener('pointerdown',function(e){ fist(); cancelAnimationFrame(flickRaf); pvx=pvy=0; band=0; if(playing) return;
+  cv.addEventListener('pointerdown',function(e){
+    var onTarget=!playing && !focus && (posterAt(e.clientX,e.clientY) || kioskAt(e.clientX,e.clientY));
+    if(onTarget) cv.classList.add('point'); else fist();   /* over a poster or the kiosk the pointing finger stays; everywhere else the hand closes */ cancelAnimationFrame(flickRaf); pvx=pvy=0; band=0; if(playing) return;
     if(focus){ if(pvName){ if(pvOn) pvBack(); } else if(ft>0.5) unfocus(); return; }
-    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null); cv.classList.remove('point'); pressName=downPoster; if(downPoster) draw(); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null); pressName=downPoster; if(downPoster) draw(); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); if(!downPoster) cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
     if(!down){ var hv=focus?null:(posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null)); if(hv!==hover){ hover=hv; cv.classList.toggle('point',!!hv); draw(); } return; }
     if(playing) return;
     if(isPhone()){ phoneMove(e); return; }
-    if(!axis){ var mx=e.clientX-downX, my=e.clientY-downY; if(Math.max(Math.abs(mx),Math.abs(my))<4) return; pressName=null; flashName=null;
+    if(!axis){ var mx=e.clientX-downX, my=e.clientY-downY; if(Math.max(Math.abs(mx),Math.abs(my))<4) return; pressName=null; flashName=null; if(downPoster){ cv.classList.remove('point'); fist(); }
       /* up/down only from the vault itself; otherwise it's a turn */
       axis=(Math.abs(my)>Math.abs(mx)*1.2 && stop===0 && Math.abs(off)<2)?'v':'h'; lx=downX; ly=downY; zoomTo(GRAB_ZOOM,220);
       if(axis==='h' && voff>0){ voff=0; vplace(); }   /* grabbed while it was still settling from a look up: let the turn take over cleanly */ }
@@ -471,7 +473,7 @@
     var now=performance.now(), prev=off; var nOff=off-(e.clientX-lx)/pxScale(); if(stop===1 && lobbyA>0.5 && Math.abs(prev)<12 && Math.abs(nOff)>=12) glitchPulse(0.2,260); setOff(nOff); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function phoneMove(e){
     var dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
-    if(!axis){ if(Math.max(Math.abs(e.clientX-downX),Math.abs(e.clientY-downY))<10) return; axis='p'; pressName=null; flashName=null; }   /* no grab zoom on a phone: the picture stays exactly under your finger */
+    if(!axis){ if(Math.max(Math.abs(e.clientX-downX),Math.abs(e.clientY-downY))<10) return; axis='p'; pressName=null; flashName=null; if(downPoster){ cv.classList.remove('point'); fist(); } }   /* no grab zoom on a phone: the picture stays exactly under your finger */
     var now=performance.now(), dt=Math.max(8,now-(lastMoveT||now-16)); lastMoveT=now;
     pvx=0.7*pvx+0.3*(dx/dt); pvy=0.7*pvy+0.3*(dy/dt);   /* finger speed, for the flick */
     applyPhone(dx,dy); }
