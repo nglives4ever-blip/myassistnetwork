@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <base href="/lookaround/">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>MyAssist Network</title>
 <link rel="icon" type="image/png" href="../img/myassist-icon.png">
 <link rel="apple-touch-icon" href="../img/myassist-icon.png">
@@ -175,7 +175,7 @@
     } else { var im=nearest(H,h); if(!im){ ctx.restore(); return; } ctx.drawImage(im,x0,y0,w,hh); }
     if(homeBlend>0){ var hs0=(stop===0 && off<0 && !playing)?-off*k:0; drawH0(homeBlend,x0+hs0,y0,k,w,hh); }
     else if(stop===0 && !playing && !vmode() && off>=0 && off<18){ drawH0(vaultA*(1-off/18),x0-off*k,y0,k,w,hh); }   /* the original vault slides with your hand, then hands off to the footage */
-    var dragT=(stop===1 && !playing)?Math.min(1,Math.abs(off)/18):0, la=lobbyA*(1-dragT);
+    var dragT=(stop===1 && !playing)?(off<0?0:Math.min(1,off/18)):0, la=lobbyA*(1-dragT);
     if(la>0 && LOBBY_HD.complete && LOBBY_HD.naturalWidth){ /* the sharp lobby still, locked onto the exact position of the video frame underneath
       (measured from the footage), so it slides with your hand and hands off to the footage without doubling up */
       var hs=(stop===1 && !playing)?-off*k:0;
@@ -185,7 +185,9 @@
       /* starts locked onto the HD lobby, then eases to the film's own full frame so the poster close-up isn't cropped */
       var C=pvMat(pvName), u=pvU, T=[C[0]+(1-C[0])*u, C[1]*(1-u), C[2]*(1-u)-SHIFT0*u, C[3]*(1-u), C[4]+(1-C[4])*u, C[5]*(1-u)];
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
-      ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720); ctx.restore(); }
+      ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720);
+      if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720); }
+      ctx.restore(); }
     if(hover && !focus && !down && !playing){ var hq=targetQuad(hover); if(hq){ /* a soft gold edge says the poster can be clicked */
       ctx.save(); ctx.beginPath(); for(var pi=0;pi<hq.length;pi+=2){ var px=x0+hq[pi]*k, py=y0+hq[pi+1]*k; if(pi) ctx.lineTo(px,py); else ctx.moveTo(px,py); } ctx.closePath();
       ctx.strokeStyle='rgba(240,196,110,.85)'; ctx.lineWidth=2.5*k; ctx.shadowColor='rgba(240,196,110,.9)'; ctx.shadowBlur=18*k; ctx.stroke(); ctx.restore(); } }
@@ -256,7 +258,7 @@
     (function step(now){ var t=Math.min(1,(now-t0)/220); lobbyA=a0*(1-t); draw(); if(t<1) lobbyRaf=requestAnimationFrame(step); })(t0); }
   addEventListener('resize',fit); fit();
   window.__pa=function(x,y){ return posterAt(x,y); }; window.__pb=function(){ return panBounds(); };
-  window.__la=function(){ return {vs:vs,voff:Math.round(voff),off:Math.round(off),stop:stop,playing:playing,down:down,axis:axis,panX:Math.round(panX),panY:Math.round(panY),vh:+vh.toFixed(1),h:+h.toFixed(1),pv:pvName,pvA:+pvA.toFixed(2),focus:focus}; };   /* test hook */
+  window.__la=function(){ return {vs:vs,voff:Math.round(voff),off:Math.round(off),stop:stop,playing:playing,down:down,axis:axis,panX:Math.round(panX),panY:Math.round(panY),vh:+vh.toFixed(1),h:+h.toFixed(1),pv:pvName,pvA:+pvA.toFixed(2),focus:focus,loop:loopOn,pvLA:+pvLA.toFixed(2),lt:pvLoop?+pvLoop.currentTime.toFixed(2):null}; };   /* test hook */
 
   /* ---- drag to look: two stops (vault, lobby), both directions ----
      Drag either way to peek. Pass the takeover point and the camera carries you to the other stop:
@@ -383,7 +385,7 @@
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
   var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
            walk:   { src:'../video/walkup', base:'frame', noRev:true, hold:99, M:[1,0,0,0,1,0] },
-           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
+           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v3', joins:[], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
   var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=PV[name].base==='frame'?[1,0,0,0,1,0]:HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
@@ -391,7 +393,24 @@
     [['mp4','video/mp4'],['webm','video/webm']].forEach(function(t){ var so=document.createElement('source'); so.src=src+'.'+t[0]; so.type=t[1]; v.appendChild(so); });
     /* kept in the page (invisible) so every browser decodes it, Safari included */
     v.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v); v.load(); return v; }
-  function pvPrep(name){ if(!pvEl[name]) pvEl[name]={ f:mkVid(PV[name].src), r:PV[name].noRev?null:mkVid(PV[name].src+'_rev') }; return pvEl[name]; }
+  function pvPrep(name){ if(!pvEl[name]){ pvEl[name]={ f:mkVid(PV[name].src), r:PV[name].noRev?null:mkVid(PV[name].src+'_rev') }; if(PV[name].loop){ var lv=mkVid(PV[name].loop); lv.loop=true; pvEl[name].l=lv; } } return pvEl[name]; }
+  /* ---- living poster: once the film lands on the full shot, a seamless loop takes over (her hair moves, the light shifts) until they step back.
+     The loop file is Johnny's two Veo takes, camera locked to the film's last frame, cross-faded end to end; a whisper of glitch covers each join. ---- */
+  var pvLoop=null, pvLA=0, loopOn=false, loopRaf=0, spaceRaw=fetch('../audio/space-loop-v3.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), spaceBuf=null, spaceSrc=null;
+  function spacePlay(){ if(!ac||muted) return; function go(){ if(!loopOn || spaceSrc) return; var s2=ac.createBufferSource(), g2=ac.createGain(), t=ac.currentTime; s2.buffer=spaceBuf; s2.loop=true; s2.loopStart=0; s2.loopEnd=Math.min(spaceBuf.duration,40.625);
+      g2.gain.setValueAtTime(0,t); g2.gain.linearRampToValueAtTime(0.5,t+1.2); s2.connect(g2); g2.connect(out); s2.start(t); spaceSrc={s:s2,g:g2}; }
+    if(spaceBuf) go(); else spaceRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a.slice(0),function(b){ spaceBuf=b; go(); }); }); }
+  function spaceStop(){ if(!spaceSrc||!ac) return; var r=spaceSrc, t=ac.currentTime; spaceSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+.5); try{ r.s.stop(t+.55); }catch(_){} }
+  function startLoop(name){ var l=pvEl[name]&&pvEl[name].l; if(!l || !pvOn || pvName!==name || loopOn) return;
+    loopOn=true; pvLoop=l; try{ l.currentTime=0; }catch(_){} var pr; try{ pr=l.play(); }catch(_){ loopOn=false; return; } if(pr && pr.catch) pr.catch(function(){ loopOn=false; pvLA=0; });
+    spacePlay(); var a0=null, J=PV[name].joins||[];
+    (function lp(now){ if(!loopOn) return;
+      if(l.readyState>=2 && !l.seeking && l.currentTime>0){ if(a0===null) a0=now; pvLA=Math.min(1,(now-a0)/250); }   /* the loop starts on the film's own last frame: a quick 250ms blend hides the last few pixels of difference */
+      var ct=l.currentTime, gj=0; for(var j=0;j<J.length;j++){ var dj=Math.abs(ct-J[j]); if(dj<0.22) gj=Math.max(gj,0.18*(1-dj/0.22)); }
+      if(gj>0) gA=gj*(0.8+0.2*Math.random()); else if(gA>0 && gA<0.2) gA=0;
+      draw(); loopRaf=requestAnimationFrame(lp); })(performance.now()); }
+  function stopLoop(ms){ if(!pvLoop) return; loopOn=false; cancelAnimationFrame(loopRaf); spaceStop(); var l=pvLoop, a0=performance.now(), from=pvLA;
+    (function fade(n2){ var t=Math.min(1,(n2-a0)/(ms||300)); pvLA=from*(1-t); draw(); if(t<1){ requestAnimationFrame(fade); return; } pvLA=0; pvLoop=null; try{ l.pause(); }catch(_){} })(a0); }
   /* one loop for both directions: et is where we are on the forward timeline */
   function pvRun(name, v, rev, onEnd){
     var dur=v.duration||8, g=PV[name].glitch, sounded=false, rg=PV[name].ring, rung=false;
@@ -404,6 +423,7 @@
       if(g && et>=g[0] && et<=g[1]){ if(!sounded){ sounded=true; playGlitch(0.5); } var u=(et-g[0])/(g[1]-g[0]); gA=0.4*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); }
       else if(gA>0) gA=Math.max(0,gA-0.15);
       if(!rev && !v._held && !PV[name].noRev && et>=PV[name].hold){ v._held=true; backCue(); }
+      if(!rev && PV[name].loop && !v._looped && et>=dur-0.15){ v._looped=true; startLoop(name); }   /* start the loop a beat early so there is no still moment at the hand-off */
       draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
   }
   function playPoster(name){
@@ -411,18 +431,19 @@
     var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1 && PV[name].base!=='frame') lobbyIn(450);
     if(name==='walk') pvExtra();
     /* unlock both films inside the click itself (so no browser blocks them), then hold them at the start */
-    [v,e2.r].forEach(function(x){ if(!x) return; x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
+    [v,e2.r,e2.l].forEach(function(x){ if(!x) return; x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
     var settleMs=Math.abs(from)>2?450:(isPhone()?380:0);
     (function step(now){ var t=settleMs?Math.min(1,(now-t0)/settleMs):1, ee=1-Math.pow(1-t,3); off=from*(1-ee); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
       off=0; place(); try{ v.currentTime=0; }catch(_){}
       var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
         (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
-        pvBusy=false; v._held=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:function(){}); };
+        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:function(){})); };
       v._go=true; var pr=v.play(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
     if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone'); stopRing();
+    if(loopOn || pvLA>0){ glitchPulse(0.35,380); playGlitch(0.4); stopLoop(320); }   /* leaving the living poster: a quick glitch covers the jump back to the film */
     var name=pvName, f=pvEl[name].f, r=pvEl[name].r; if(!r){ stopSteps(); pressBtn.hidden=true; }
     var dur=f.duration||8, at=Math.min(f.ended?dur:f.currentTime, PV[name].hold);   /* skip the still hold at the end so it moves right away */
     var done=function(){ var a0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-a0)/300); pvA=1-t; draw(); if(t<1){ requestAnimationFrame(fade); return; }
@@ -463,9 +484,10 @@
     stop=0; off=0; lastOff=0; homeBlend=0; place(); }
   document.getElementById('soonBack').addEventListener('click',function(){ soon.hidden=true; resetKiosk(); armIdle(); });
   function unfocus(){ hint.classList.add('gone'); ftTo(0,700,function(){ focus=null; cv.classList.remove('focused'); armIdle(); }); }
+  var LOBBY_EDGE=-(S[LOBBY]-S[78]), LOBBY_PULL=320, dBand=0, edgeFlashed=false;   /* desktop lobby, looking left: the clean footage ends at frame 78 */
   function glide(){ /* let go: keep the momentum for a moment, then hold where you are */
-    var v=vel*16; if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); return; }
-    (function step(){ if(playing||down) return; if(Math.abs(v)>0.4){ setOff(off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
+    var v=vel*16; if(stop===1 && v<0) v=Math.max(v,LOBBY_EDGE-off); if(Math.abs(off)<30 && Math.abs(v)<6){ settle(); return; }
+    (function step(){ if(playing||down) return; if(Math.abs(v)>0.4){ setOff(stop===1?Math.max(LOBBY_EDGE,off+v):off+v); v*=0.9; raf=requestAnimationFrame(step); } else armIdle(); })();
   }
   /* let go and leave it: a couple of seconds later the camera eases back to where it rests (the vault, or the sharp lobby still).
      The lobby stays put until they turn back to the vault themselves. */
@@ -483,12 +505,24 @@
   var fistT=0; function fist(){ clearTimeout(fistT); cv.classList.add('grabbing'); }
   function unfist(){ clearTimeout(fistT); fistT=setTimeout(function(){ if(!down) cv.classList.remove('grabbing'); },220); }
   addEventListener('pointerup',function(){ if(!down) unfist(); });
+  /* two fingers (a pinch) is not a look: drop the gesture, settle back, and ignore it until every finger is up */
+  var ptrs={}, nPtr=0, multi=false, downId=null;
+  function pinchCancel(){ multi=true; if(down){ down=false; unfist(); pressName=null; cancelAnimationFrame(flickRaf); pvx=pvy=0; }
+    if(!playing){ if(vs===0 && voff>0.5) vsettle(); else armIdle(); } draw(); }
+  ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t,function(ev){ ev.preventDefault(); },{passive:false}); });   /* iOS: no page zoom */
+  function ptrGone(e){ if(ptrs[e.pointerId]){ delete ptrs[e.pointerId]; nPtr--; } if(nPtr<=0){ nPtr=0; multi=false; } }
+  addEventListener('pointerup',ptrGone,true); addEventListener('pointercancel',ptrGone,true);
   cv.addEventListener('pointerdown',function(e){
+    if(!down && !multi){ ptrs={}; nPtr=0; }   /* nothing is held: clear any finger the browser never reported lifting */
+    if(!ptrs[e.pointerId]){ ptrs[e.pointerId]=1; nPtr++; }
+    if(nPtr>1 || multi){ if(!multi) pinchCancel(); return; }
+    downId=e.pointerId;
     var onTarget=!playing && !focus && (posterAt(e.clientX,e.clientY) || kioskAt(e.clientX,e.clientY));
     if(onTarget) cv.classList.add('point'); else fist();   /* over a poster or the kiosk the pointing finger stays; everywhere else the hand closes */ cancelAnimationFrame(flickRaf); pvx=pvy=0; band=0; if(playing) return;
     if(focus){ if(pvName){ if(pvOn) pvBack(); } else if(ft>0.5) unfocus(); return; }
-    downX=e.clientX; downY=e.clientY; downT=performance.now(); downPoster=posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null); pressName=downPoster; if(downPoster) draw(); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); if(!downPoster) cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+    downX=e.clientX; downY=e.clientY; downT=performance.now(); dBand=0; edgeFlashed=false; downPoster=posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null); pressName=downPoster; if(downPoster) draw(); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); if(!downPoster) cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
+    if(multi || (down && e.pointerId!==downId)) return;
     if(!down){ var hv=focus?null:(posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null)); if(hv!==hover){ hover=hv; cv.classList.toggle('point',!!hv); draw(); } return; }
     if(playing) return;
     if(isPhone()){ phoneMove(e); return; }
@@ -497,7 +531,13 @@
       axis=(Math.abs(my)>Math.abs(mx)*1.2 && stop===0 && Math.abs(off)<2)?'v':'h'; lx=downX; ly=downY; zoomTo(GRAB_ZOOM,220);
       if(axis==='h' && voff>0){ voff=0; vplace(); }   /* grabbed while it was still settling from a look up: let the turn take over cleanly */ }
     if(axis==='v'){ var nv=performance.now(); vsetOff(voff+(e.clientY-ly)/pxScale()); ly=e.clientY; lx=e.clientX; lastMoveT=nv; return; }
-    var now=performance.now(), prev=off; var nOff=off-(e.clientX-lx)/pxScale(); if(stop===1 && lobbyA>0.5 && Math.abs(prev)<12 && Math.abs(nOff)>=12) glitchPulse(0.2,260); setOff(nOff); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
+    var now=performance.now(), prev=off; var nOff=off-(e.clientX-lx)/pxScale();
+    if(stop===1 && nOff<LOBBY_EDGE){ /* looking left in the lobby: hold at the edge of the clean footage so the left poster can be found and clicked; only a firm pull goes on through the glitch */
+      dBand+=Math.min(off,LOBBY_EDGE)-nOff; nOff=LOBBY_EDGE;
+      if(!edgeFlashed){ edgeFlashed=true; flashName='left'; flashT0=performance.now(); draw(); }
+      if(dBand>LOBBY_PULL){ dBand=0; glitchPulse(0.3,300); autoplay(-1); return; } }
+    else if(stop===1 && nOff>LOBBY_EDGE){ dBand=Math.max(0,dBand-(nOff-Math.max(off,LOBBY_EDGE))); }
+    if(stop===1 && lobbyA>0.5 && prev>-12 && prev<12 && nOff>=12) glitchPulse(0.2,260); setOff(nOff); var dt=Math.max(1,now-(lastMoveT||now-16)); vel=(off-prev)/dt; lastMoveT=now; lx=e.clientX; });
   function phoneMove(e){
     var dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
     if(!axis){ if(Math.max(Math.abs(e.clientX-downX),Math.abs(e.clientY-downY))<10) return; axis='p'; pressName=null; flashName=null; if(downPoster){ cv.classList.remove('point'); fist(); } }   /* no grab zoom on a phone: the picture stays exactly under your finger */
@@ -522,7 +562,7 @@
     var vx=pvx*16, vy=pvy*16, t=performance.now();
     (function step(){ if(down||playing){ return; } if(Math.abs(vx)<0.3 && Math.abs(vy)<0.3){ armIdle(); return; }
       applyPhone(vx, (vs>0||voff>0.5)?vy*0.5:vy); vx*=0.92; vy*=0.92; flickRaf=requestAnimationFrame(step); })(); }
-  function up(e){ if(!down) return; down=false; unfist(); if(pressName){ flashName=pressName; flashT0=performance.now()-300; pressName=null; draw(); }
+  function up(e){ if(!down || (e && e.pointerId!==downId)) return; down=false; unfist(); if(pressName){ flashName=pressName; flashT0=performance.now()-300; pressName=null; draw(); }
     var click=e && Math.abs(e.clientX-downX)<10 && Math.abs(e.clientY-downY)<10 && performance.now()-downT<1200;
     if(click && downPoster && !playing){ if(downPoster==='kiosk') playPoster('walk'); else if(PV[downPoster]) playPoster(downPoster); else focusPoster(downPoster); return; }
     if(playing) return;
