@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>MyAssist Network · Look Around (test)</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="../img/myassist-icon.png">
@@ -487,12 +487,24 @@
   var fistT=0; function fist(){ clearTimeout(fistT); cv.classList.add('grabbing'); }
   function unfist(){ clearTimeout(fistT); fistT=setTimeout(function(){ if(!down) cv.classList.remove('grabbing'); },220); }
   addEventListener('pointerup',function(){ if(!down) unfist(); });
+  /* two fingers (a pinch) is not a look: drop the gesture, settle back, and ignore it until every finger is up */
+  var ptrs={}, nPtr=0, multi=false, downId=null;
+  function pinchCancel(){ multi=true; if(down){ down=false; unfist(); pressName=null; cancelAnimationFrame(flickRaf); pvx=pvy=0; }
+    if(!playing){ if(vs===0 && voff>0.5) vsettle(); else armIdle(); } draw(); }
+  ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t,function(ev){ ev.preventDefault(); },{passive:false}); });   /* iOS: no page zoom */
+  function ptrGone(e){ if(ptrs[e.pointerId]){ delete ptrs[e.pointerId]; nPtr--; } if(nPtr<=0){ nPtr=0; multi=false; } }
+  addEventListener('pointerup',ptrGone,true); addEventListener('pointercancel',ptrGone,true);
   cv.addEventListener('pointerdown',function(e){
+    if(!down && !multi){ ptrs={}; nPtr=0; }   /* nothing is held: clear any finger the browser never reported lifting */
+    if(!ptrs[e.pointerId]){ ptrs[e.pointerId]=1; nPtr++; }
+    if(nPtr>1 || multi){ if(!multi) pinchCancel(); return; }
+    downId=e.pointerId;
     var onTarget=!playing && !focus && (posterAt(e.clientX,e.clientY) || kioskAt(e.clientX,e.clientY));
     if(onTarget) cv.classList.add('point'); else fist();   /* over a poster or the kiosk the pointing finger stays; everywhere else the hand closes */ cancelAnimationFrame(flickRaf); pvx=pvy=0; band=0; if(playing) return;
     if(focus){ if(pvName){ if(pvOn) pvBack(); } else if(ft>0.5) unfocus(); return; }
     downX=e.clientX; downY=e.clientY; downT=performance.now(); dBand=0; edgeFlashed=false; downPoster=posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null); pressName=downPoster; if(downPoster) draw(); clearTimeout(idleTimer); vel=0; down=true; lx=e.clientX; ly=e.clientY; axis=vs>0?'v':null; hover=null; cv.classList.remove('poster'); cancelAnimationFrame(raf); if(!downPoster) cv.classList.add('grabbing'); hint.classList.add('gone'); startSound(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove',function(e){
+    if(multi || (down && e.pointerId!==downId)) return;
     if(!down){ var hv=focus?null:(posterAt(e.clientX,e.clientY)||(kioskAt(e.clientX,e.clientY)?'kiosk':null)); if(hv!==hover){ hover=hv; cv.classList.toggle('point',!!hv); draw(); } return; }
     if(playing) return;
     if(isPhone()){ phoneMove(e); return; }
@@ -532,7 +544,7 @@
     var vx=pvx*16, vy=pvy*16, t=performance.now();
     (function step(){ if(down||playing){ return; } if(Math.abs(vx)<0.3 && Math.abs(vy)<0.3){ armIdle(); return; }
       applyPhone(vx, (vs>0||voff>0.5)?vy*0.5:vy); vx*=0.92; vy*=0.92; flickRaf=requestAnimationFrame(step); })(); }
-  function up(e){ if(!down) return; down=false; unfist(); if(pressName){ flashName=pressName; flashT0=performance.now()-300; pressName=null; draw(); }
+  function up(e){ if(!down || (e && e.pointerId!==downId)) return; down=false; unfist(); if(pressName){ flashName=pressName; flashT0=performance.now()-300; pressName=null; draw(); }
     var click=e && Math.abs(e.clientX-downX)<10 && Math.abs(e.clientY-downY)<10 && performance.now()-downT<1200;
     if(click && downPoster && !playing){ if(downPoster==='kiosk') playPoster('walk'); else if(PV[downPoster]) playPoster(downPoster); else focusPoster(downPoster); return; }
     if(playing) return;

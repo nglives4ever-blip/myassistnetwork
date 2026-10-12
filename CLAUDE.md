@@ -33,6 +33,7 @@ Canvas frame-scrub built from Johnny's Veo clips.
 - Kiosk: click plays ../video/walkup (starts exactly on frame 0), PRESS TO UNLOCK, ../video/unlock, Coming Soon, back to vault.
 - Cursors: gold open hand, fist only while grabbing the room, gold pointing finger (hand-point*.png) over posters/kiosk/press (never a fist there).
 - Phone (portrait): free look inside the frame first (left/right, a little up/down), overflow turns the footage (PH_GAIN 2, long limits x0.6), flick glide, 1x canvas, no grab zoom, lobby left edge holds then a firm pull goes to the vault (avoids the baked glitch frames). TAP TO VIEW / TAP TO ENTER breathing gold cues; press lights the target. During a poster film the step-back cue moves to the top on phones (level with the sound button, "Tap anywhere to step back"); desktop keeps it at the bottom as "Click".
+- Pinch / two fingers: ignored. A second finger cancels the gesture (settles back) until all fingers lift; viewport blocks page zoom (user-scalable=no plus iOS gesture events prevented).
 - Test hooks: window.__la(), __pa(x,y), __pb(). Test with Playwright; python http.server lacks Range requests so videos can't seek, use a Range-capable server.
 - Always give Johnny the link at the end: https://www.myassistnetwork.com/lookaround/
 
