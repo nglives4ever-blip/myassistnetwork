@@ -101,6 +101,16 @@
     im.onload=function(){ var fin=function(){ im._ok=true; loaded++; bar.style.width=(loaded/total*100)+'%'; if(loaded>=total) load.classList.add('done'); draw(); };
       if(im.decode) im.decode().then(fin,fin); else fin(); };
     im.src=dir+(PHONE_FRAMES?'m':'')+'/'+pad(i)+'.jpg'; arr[i]=im; }
+  /* the vault rests on Johnny's original picture (real MyAssist logo on the kiosk screen) instead of Veo's redrawn first frame */
+  var VAULT_HD=new Image(); VAULT_HD.onload=function(){ draw(); }; VAULT_HD.src=PHONE_FRAMES?'vault-m.jpg':'vault.jpg';
+  var VM=[1.00611,-0.00007,-3.826,0.00007,1.00611,0.469];   /* original vault picture -> video frame 0 (scale, rotation, offset in 1280px units) */
+  var vaultA=1, vaultRaf=0;
+  function vaultIn(ms){ cancelAnimationFrame(vaultRaf); var a0=vaultA, t0=performance.now();
+    (function step(now){ var t=Math.min(1,(now-t0)/(ms||500)), e=t*t*(3-2*t); vaultA=a0+(1-a0)*e; draw(); if(t<1) vaultRaf=requestAnimationFrame(step); })(t0); }
+  function drawH0(a,X,Y,k,w,hh){ if(a<=0) return;
+    if(VAULT_HD.complete && VAULT_HD.naturalWidth){ ctx.save(); ctx.translate(X,Y); ctx.scale(k,k); ctx.transform(VM[0],VM[3],VM[1],VM[4],VM[2],VM[5]);
+      ctx.globalAlpha=Math.min(1,a); ctx.drawImage(VAULT_HD,0,0,1280,1280*VAULT_HD.naturalHeight/VAULT_HD.naturalWidth); ctx.restore(); return; }
+    var im=nearest(H,0); if(im){ ctx.globalAlpha=Math.min(1,a); ctx.drawImage(im,X,Y,w,hh); ctx.globalAlpha=1; } }
   /* frames closest to where you start (vault, both sides of it, and the lobby) load first, so the first drag is never waiting */
   (function(){ var order=[]; for(var i=0;i<H_COUNT;i++) order.push(i);
     order.sort(function(a,b){ function d(x){ return Math.min(Math.abs(x-16),Math.abs(x-158),Math.abs(x-82)*1.5); } return d(a)-d(b); });
@@ -161,12 +171,13 @@
         if(g>0.3){ var ga=Math.min(1,(g-0.3)/0.4); ctx.globalAlpha=ga*ga*(3-2*ga); ctx.drawImage(VB,x0,y0-(1-g)*dv*k,w,hh); ctx.globalAlpha=1; }
       } else { var vim=nearest(V,vh)||nearest(H,0); if(vim) ctx.drawImage(vim,x0,y0,w,hh); }
       var vt=Math.max(0,Math.min(1,(voff-40)/190)), vb=vs===0 ? Math.max(vFade, 1-vt*vt*(3-2*vt)) : vFade;   /* the real vault frame holds, then melts slowly into the look-up footage */
-      if(vb>0){ var hv0=nearest(H,0); if(hv0){ ctx.globalAlpha=Math.min(1,vb); ctx.drawImage(hv0,x0,y0+(vs===0&&!playing?voff*k:0),w,hh); ctx.globalAlpha=1; } }
+      if(vb>0) drawH0(vb,x0,y0+(vs===0&&!playing?voff*k:0),k,w,hh);
     } else if(ready(A) && (f<0.002 || ready(B))){
       ctx.drawImage(A,x0-f*di*k,y0,w,hh);                                   /* this frame slides along with your hand */
       if(f>0.3){ var fa=Math.min(1,(f-0.3)/0.4); ctx.globalAlpha=fa*fa*(3-2*fa); ctx.drawImage(B,x0+(1-f)*di*k,y0,w,hh); ctx.globalAlpha=1; }   /* and the next one cross-fades in, lined up with it, in the middle of the gap so there is no ghosting */
     } else { var im=nearest(H,h); if(!im){ ctx.restore(); return; } ctx.drawImage(im,x0,y0,w,hh); }
-    if(homeBlend>0){ var home=nearest(H,0); if(home){ var hs0=(stop===0 && off<0 && !playing)?-off*k:0; ctx.globalAlpha=homeBlend; ctx.drawImage(home,x0+hs0,y0,w,hh); ctx.globalAlpha=1; } }
+    if(homeBlend>0){ var hs0=(stop===0 && off<0 && !playing)?-off*k:0; drawH0(homeBlend,x0+hs0,y0,k,w,hh); }
+    else if(stop===0 && !playing && !vmode() && off>=0 && off<18){ drawH0(vaultA*(1-off/18),x0-off*k,y0,k,w,hh); }   /* the original vault slides with your hand, then hands off to the footage */
     var dragT=(stop===1 && !playing)?Math.min(1,Math.abs(off)/18):0, la=lobbyA*(1-dragT);
     if(la>0 && LOBBY_HD.complete && LOBBY_HD.naturalWidth){ /* the sharp lobby still, locked onto the exact position of the video frame underneath
       (measured from the footage), so it slides with your hand and hands off to the footage without doubling up */
@@ -288,7 +299,7 @@
       if(!leanedOut && ((glitch && d>0 && n>=GLITCH_LO) || (!(glitch && d>0) && Math.abs(to-n)<=8))){ leanedOut=true; zoomTo(1, (glitch&&d>0)?520:650); }
       if((d>0&&n>=to)||(d<0&&n<=to)){ h=to; draw();
         if(loopHome){ fadeHome(); return; }
-        stop=toStop; off=0; playing=false; cv.classList.remove('playing'); place();
+        stop=toStop; off=0; playing=false; cv.classList.remove('playing'); if(stop===0){ vaultA=0; vaultIn(500); } place();
         if(stop===1){ lobbyIn(520); glitchOut(480); armIdle(); for(var pn in PV) pvPrep(pn); } return; }
       h=n; draw(); raf=requestAnimationFrame(step); })(t0);
   }
