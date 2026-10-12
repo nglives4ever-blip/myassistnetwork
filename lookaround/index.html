@@ -388,7 +388,7 @@
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
   var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
            walk:   { src:'../video/walkup', base:'frame', noRev:true, hold:99, M:[1,0,0,0,1,0] },
-           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop', joins:[7.625,14.875,22.125,29.375], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
+           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop', joins:[5.542,11.958,17.167,21.708,26.875,31.542], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
   var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=PV[name].base==='frame'?[1,0,0,0,1,0]:HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
@@ -400,7 +400,7 @@
   /* ---- living poster: once the film lands on the full shot, a seamless loop takes over (her hair moves, the light shifts) until they step back.
      The loop file is Johnny's two Veo takes, camera locked to the film's last frame, cross-faded end to end; a whisper of glitch covers each join. ---- */
   var pvLoop=null, pvLA=0, loopOn=false, loopRaf=0, spaceRaw=fetch('../audio/space-loop.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), spaceBuf=null, spaceSrc=null;
-  function spacePlay(){ if(!ac||muted) return; function go(){ if(!loopOn || spaceSrc) return; var s2=ac.createBufferSource(), g2=ac.createGain(), t=ac.currentTime; s2.buffer=spaceBuf; s2.loop=true; s2.loopStart=0; s2.loopEnd=Math.min(spaceBuf.duration,29.75);
+  function spacePlay(){ if(!ac||muted) return; function go(){ if(!loopOn || spaceSrc) return; var s2=ac.createBufferSource(), g2=ac.createGain(), t=ac.currentTime; s2.buffer=spaceBuf; s2.loop=true; s2.loopStart=0; s2.loopEnd=Math.min(spaceBuf.duration,31.917);
       g2.gain.setValueAtTime(0,t); g2.gain.linearRampToValueAtTime(0.5,t+1.2); s2.connect(g2); g2.connect(out); s2.start(t); spaceSrc={s:s2,g:g2}; }
     if(spaceBuf) go(); else spaceRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a.slice(0),function(b){ spaceBuf=b; go(); }); }); }
   function spaceStop(){ if(!spaceSrc||!ac) return; var r=spaceSrc, t=ac.currentTime; spaceSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+.5); try{ r.s.stop(t+.55); }catch(_){} }
