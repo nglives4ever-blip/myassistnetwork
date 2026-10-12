@@ -190,7 +190,8 @@
       var C=pvMat(pvName), u=pvU, T=[C[0]+(1-C[0])*u, C[1]*(1-u), C[2]*(1-u)-SHIFT0*u, C[3]*(1-u), C[4]+(1-C[4])*u, C[5]*(1-u)];
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
       ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720);
-      if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720); }
+      if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720);
+        if(snapA>0){ ctx.globalAlpha=pvA*pvLA*snapA; ctx.drawImage(snapCv,0,0,1280,720); } }
       ctx.restore(); }
     if(hover && !focus && !down && !playing){ var hq=targetQuad(hover); if(hq){ /* a soft gold edge says the poster can be clicked */
       ctx.save(); ctx.beginPath(); for(var pi=0;pi<hq.length;pi+=2){ var px=x0+hq[pi]*k, py=y0+hq[pi+1]*k; if(pi) ctx.lineTo(px,py); else ctx.moveTo(px,py); } ctx.closePath();
@@ -389,7 +390,7 @@
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
   var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
            walk:   { src:'../video/walkup', base:'frame', noRev:true, hold:99, M:[1,0,0,0,1,0] },
-           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v3', joins:[], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
+           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v4', joins:[], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
   var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=PV[name].base==='frame'?[1,0,0,0,1,0]:HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
@@ -397,23 +398,32 @@
     [['mp4','video/mp4'],['webm','video/webm']].forEach(function(t){ var so=document.createElement('source'); so.src=src+'.'+t[0]; so.type=t[1]; v.appendChild(so); });
     /* kept in the page (invisible) so every browser decodes it, Safari included */
     v.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v); v.load(); return v; }
-  function pvPrep(name){ if(!pvEl[name]){ pvEl[name]={ f:mkVid(PV[name].src), r:PV[name].noRev?null:mkVid(PV[name].src+'_rev') }; if(PV[name].loop){ var lv=mkVid(PV[name].loop); lv.loop=true; pvEl[name].l=lv; } } return pvEl[name]; }
-  /* ---- living poster: once the film lands on the full shot, a seamless loop takes over (her hair moves, the light shifts) until they step back.
-     The loop file is Johnny's two Veo takes, camera locked to the film's last frame, cross-faded end to end; a whisper of glitch covers each join. ---- */
-  var pvLoop=null, pvLA=0, loopOn=false, loopRaf=0, spaceRaw=fetch('../audio/space-loop-v3.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), spaceBuf=null, spaceSrc=null;
-  function spacePlay(){ if(!ac||muted) return; function go(){ if(!loopOn || spaceSrc) return; var s2=ac.createBufferSource(), g2=ac.createGain(), t=ac.currentTime; s2.buffer=spaceBuf; s2.loop=true; s2.loopStart=0; s2.loopEnd=Math.min(spaceBuf.duration,40.625);
-      g2.gain.setValueAtTime(0,t); g2.gain.linearRampToValueAtTime(0.5,t+1.2); s2.connect(g2); g2.connect(out); s2.start(t); spaceSrc={s:s2,g:g2}; }
+  function pvPrep(name){ if(!pvEl[name]){ pvEl[name]={ f:mkVid(PV[name].src), r:PV[name].noRev?null:mkVid(PV[name].src+'_rev') }; if(PV[name].loop){ pvEl[name].l=mkVid(PV[name].loop); } } return pvEl[name]; }
+  /* ---- living poster: once the film lands on the full shot, Johnny's own CapCut edit (music and sound effects baked in) takes over and loops until they step back.
+     The video is muted; its soundtrack plays from audio/space-loop-vN.mp3 and restarts with the picture on every lap so the two never drift.
+     At the end of each lap the last frame is held as a snapshot and melts into the restarted video (LOOP_XF), so the wrap never jumps. ---- */
+  var pvLoop=null, pvLA=0, loopOn=false, loopRaf=0, LOOP_XF=600, LOOP_VOL=0.9,
+      spaceRaw=fetch('../audio/space-loop-v4.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }), spaceBuf=null, spaceSrc=null,
+      snapCv=document.createElement('canvas'), snapX=snapCv.getContext('2d'), snapA=0;
+  snapCv.width=1280; snapCv.height=720;
+  function spacePlay(fade){ if(!ac||muted) return; function go(){ if(!loopOn || spaceSrc) return; var s2=ac.createBufferSource(), g2=ac.createGain(), t=ac.currentTime; s2.buffer=spaceBuf;
+      g2.gain.setValueAtTime(0,t); g2.gain.linearRampToValueAtTime(LOOP_VOL,t+(fade||0.3)); s2.connect(g2); g2.connect(out); s2.start(t); spaceSrc={s:s2,g:g2}; }
     if(spaceBuf) go(); else spaceRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a.slice(0),function(b){ spaceBuf=b; go(); }); }); }
-  function spaceStop(){ if(!spaceSrc||!ac) return; var r=spaceSrc, t=ac.currentTime; spaceSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+.5); try{ r.s.stop(t+.55); }catch(_){} }
+  function spaceStop(ms){ if(!spaceSrc||!ac) return; var r=spaceSrc, t=ac.currentTime, d=(ms||500)/1000; spaceSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+d); try{ r.s.stop(t+d+.05); }catch(_){} }
   function startLoop(name){ var l=pvEl[name]&&pvEl[name].l; if(!l || !pvOn || pvName!==name || loopOn) return;
-    loopOn=true; pvLoop=l; try{ l.currentTime=0; }catch(_){} var pr; try{ pr=l.play(); }catch(_){ loopOn=false; return; } if(pr && pr.catch) pr.catch(function(){ loopOn=false; pvLA=0; });
-    spacePlay(); var a0=null, J=PV[name].joins||[];
+    loopOn=true; pvLoop=l; snapA=0; try{ l.currentTime=0; }catch(_){} var pr; try{ pr=l.play(); }catch(_){ loopOn=false; return; } if(pr && pr.catch) pr.catch(function(){ loopOn=false; pvLA=0; });
+    spacePlay(0.25); var a0=null, s0=0, J=PV[name].joins||[];
     (function lp(now){ if(!loopOn) return;
       if(l.readyState>=2 && !l.seeking && l.currentTime>0){ if(a0===null) a0=now; pvLA=Math.min(1,(now-a0)/250); }   /* the loop starts on the film's own last frame: a quick 250ms blend hides the last few pixels of difference */
+      var dur=l.duration||0;
+      if(dur && (l.ended || l.currentTime>=dur-0.07)){   /* end of the lap: freeze the last frame, restart picture and sound together, melt across */
+        try{ snapX.drawImage(l,0,0,1280,720); snapA=1; s0=now; }catch(_){ snapA=0; }
+        try{ l.currentTime=0; l.play(); }catch(_){} spaceStop(LOOP_XF); spacePlay(LOOP_XF/1000); }
+      if(snapA>0) snapA=Math.max(0,1-(now-s0)/LOOP_XF);
       var ct=l.currentTime, gj=0; for(var j=0;j<J.length;j++){ var dj=Math.abs(ct-J[j]); if(dj<0.22) gj=Math.max(gj,0.18*(1-dj/0.22)); }
       if(gj>0) gA=gj*(0.8+0.2*Math.random()); else if(gA>0 && gA<0.2) gA=0;
       draw(); loopRaf=requestAnimationFrame(lp); })(performance.now()); }
-  function stopLoop(ms){ if(!pvLoop) return; loopOn=false; cancelAnimationFrame(loopRaf); spaceStop(); var l=pvLoop, a0=performance.now(), from=pvLA;
+  function stopLoop(ms){ if(!pvLoop) return; loopOn=false; cancelAnimationFrame(loopRaf); spaceStop(); var l=pvLoop, a0=performance.now(), from=pvLA; snapA=0;
     (function fade(n2){ var t=Math.min(1,(n2-a0)/(ms||300)); pvLA=from*(1-t); draw(); if(t<1){ requestAnimationFrame(fade); return; } pvLA=0; pvLoop=null; try{ l.pause(); }catch(_){} })(a0); }
   /* one loop for both directions: et is where we are on the forward timeline */
   function pvRun(name, v, rev, onEnd){
