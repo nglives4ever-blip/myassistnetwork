@@ -433,7 +433,7 @@
     var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1 && PV[name].base!=='frame') lobbyIn(450);
     if(name==='walk') pvExtra();
     /* unlock both films inside the click itself (so no browser blocks them), then hold them at the start */
-    [v,e2.r].forEach(function(x){ if(!x) return; x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
+    [v,e2.r,e2.l].forEach(function(x){ if(!x) return; x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
     var settleMs=Math.abs(from)>2?450:(isPhone()?380:0);
     (function step(now){ var t=settleMs?Math.min(1,(now-t0)/settleMs):1, ee=1-Math.pow(1-t,3); off=from*(1-ee); place(); if(t<1){ raf=requestAnimationFrame(step); return; }
       off=0; place(); try{ v.currentTime=0; }catch(_){}
