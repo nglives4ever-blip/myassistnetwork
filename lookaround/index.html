@@ -388,7 +388,7 @@
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
   var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
            walk:   { src:'../video/walkup', base:'frame', noRev:true, hold:99, M:[1,0,0,0,1,0] },
-           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v2', joins:[6.833,13.25,18.417,22.917,28.0,34.5,39.167], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
+           left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v2', joins:[], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
   var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=PV[name].base==='frame'?[1,0,0,0,1,0]:HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
     return PV[name]._C=[Hm[0]*P[0]+Hm[1]*P[3], Hm[0]*P[1]+Hm[1]*P[4], Hm[0]*P[2]+Hm[1]*P[5]+Hm[2], Hm[3]*P[0]+Hm[4]*P[3], Hm[3]*P[1]+Hm[4]*P[4], Hm[3]*P[2]+Hm[4]*P[5]+Hm[5]]; }
