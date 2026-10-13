@@ -709,12 +709,12 @@
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); ringSrc={s:s,g:g}; }
   /* ---- sign film score: Johnny's own sound (1012.WAV), trimmed so its first hit lands on the click; its end hit (SIGN_HIT) is where the title fades up.
      Forward on the way in, reversed on the way out. ---- */
-  var SIGN_HIT=6.39, SIGN_VOL=0.7, signRaw=null, signBuf=null, signRev=null, signSrc=null;
+  var SIGN_HIT=6.49, SIGN_VOL=0.7, signRaw=null, signBuf=null, signRev=null, signSrc=null;
   function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v3.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
     signRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ signBuf=b; signRev=ac.createBuffer(b.numberOfChannels,b.length,b.sampleRate);
       for(var c=0;c<b.numberOfChannels;c++){ var d=b.getChannelData(c), e=signRev.getChannelData(c), L=d.length; for(var i=0;i<L;i++) e[i]=d[L-1-i]; } }); }); }
   function signPlay(rev,at){ if(!ac||muted) return; signStop(120); var b=rev?signRev:signBuf; if(!b) return;
-    var o=rev?Math.max(0,b.duration-at):Math.max(0,at||0); if(o>=b.duration-0.05) return;
+    var lat=(ac.outputLatency||ac.baseLatency||0), o=rev?Math.max(0,b.duration-at-lat):Math.max(0,(at||0)+lat);   /* skip ahead by the speaker delay so the hits land with the picture */ if(o>=b.duration-0.05) return;
     var s=ac.createBufferSource(), g=ac.createGain(), t=ac.currentTime; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(SIGN_VOL,t+0.02);
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); signSrc={s:s,g:g}; }
   function signStop(ms){ if(!signSrc||!ac) return; var r=signSrc, t=ac.currentTime, d=(ms||300)/1000; signSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+d); try{ r.s.stop(t+d+.05); }catch(_){} }
