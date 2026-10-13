@@ -507,8 +507,10 @@
   function pvRun(name, v, rev, onEnd){
     var dur=v.duration||8, g=PV[name].glitch, sounded=false, rg=PV[name].ring, rung=false;
     if(rg) ringPrep();
+    var scored=!PV[name].yt;
     (function loop(){ if(!pvOn) return;
       var et=rev ? dur-v.currentTime : v.currentTime;
+      if(!scored && (signBuf||!signRaw)){ scored=true; signPlay(rev,et); }
       var uu=Math.max(0,Math.min(1,(et-0.3)/2.4)); pvU=uu*uu*(3-2*uu);
       if(rg && !rung){ var RD=ringBuf?ringBuf.duration:2.2;   /* ring splash: forward on the burst, backwards ending as the ring closes */
         if(!rev && et>=rg){ rung=true; playRing(false,0); } else if(rev && et<=rg+RD){ rung=true; if(et>rg) playRing(true,rg+RD-et); } }
@@ -516,13 +518,13 @@
       else if(gA>0) gA=Math.max(0,gA-0.15);
       if(!rev && !v._held && !PV[name].noRev && et>=PV[name].hold){ v._held=true; backCue(); }
       if(!rev && PV[name].loop && !v._looped && et>=dur-0.15){ v._looped=true; startLoop(name); }
-      if(!rev && PV[name].yt && !v._looped && et>=5.95){ v._looped=true; thStart(); }   /* the title comes up while the camera is still settling on the screen: almost no bare white */   /* start the loop a beat early so there is no still moment at the hand-off */
+      if(!rev && PV[name].yt && !v._looped && et>=SIGN_HIT){ v._looped=true; thStart(); }   /* the title fades up right on the end hit of Johnny's sound */   /* start the loop a beat early so there is no still moment at the hand-off */
       draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
   }
   function playPoster(name){
     clearTimeout(idleTimer); cancelAnimationFrame(raf); flashName=name; flashT0=performance.now(); panHome(isPhone()?650:450); focus=name; pvName=name; pvBusy=true; hover=null; cv.classList.add('focused'); cv.classList.remove('poster','point'); hint.classList.add('gone');
     var e2=pvPrep(name), v=e2.f, from=off, t0=performance.now(); zoomTo(1,450); if(lobbyA<1 && PV[name].base!=='frame') lobbyIn(450);
-    if(name==='walk') pvExtra();
+    if(name==='walk') pvExtra(); if(PV[name].yt) signPrep();
     /* unlock both films inside the click itself (so no browser blocks them), then hold them at the start */
     [v,e2.r,e2.l].forEach(function(x){ if(!x) return; x._go=false; try{ var w=x.play(); if(w && w.then) w.then(function(){ if(!x._go){ x.pause(); try{ if(x===v) x.currentTime=0; }catch(_){} } },function(){}); }catch(_){} });
     var settleMs=Math.abs(from)>2?450:(isPhone()?380:0);
@@ -537,7 +539,7 @@
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
     if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone'); stopRing();
     if(loopOn || pvLA>0){ glitchPulse(0.35,380); playGlitch(0.4); stopLoop(320); }
-    if(thOn) thHide(); thTitleOut();   /* leaving the living poster: a quick glitch covers the jump back to the film */
+    if(thOn) thHide(); thTitleOut(); signStop(200);   /* leaving the living poster: a quick glitch covers the jump back to the film */
     var name=pvName, f=pvEl[name].f, r=pvEl[name].r; if(!r){ stopSteps(); pressBtn.hidden=true; }
     var dur=f.duration||8, at=Math.min(f.ended?dur:f.currentTime, PV[name].hold);   /* skip the still hold at the end so it moves right away */
     var done=function(){ var a0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-a0)/300); pvA=1-t; draw(); if(t<1){ requestAnimationFrame(fade); return; }
@@ -705,13 +707,24 @@
     for(var i=0;i<n;i++){ var x=i/(n-1); curve[i]=V*Math.pow(Math.cos(x*Math.PI/2),2); }
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(V,t+fin); g.gain.setValueCurveAtTime(curve,t+Math.max(fin,left-fo),fo-0.01);
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); ringSrc={s:s,g:g}; }
+  /* ---- sign film score: Johnny's own sound (1012.WAV), trimmed so its first hit lands on the click; its end hit (SIGN_HIT) is where the title fades up.
+     Forward on the way in, reversed on the way out. ---- */
+  var SIGN_HIT=6.39, SIGN_VOL=0.7, signRaw=null, signBuf=null, signRev=null, signSrc=null;
+  function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v1.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
+    signRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ signBuf=b; signRev=ac.createBuffer(b.numberOfChannels,b.length,b.sampleRate);
+      for(var c=0;c<b.numberOfChannels;c++){ var d=b.getChannelData(c), e=signRev.getChannelData(c), L=d.length; for(var i=0;i<L;i++) e[i]=d[L-1-i]; } }); }); }
+  function signPlay(rev,at){ if(!ac||muted) return; signStop(120); var b=rev?signRev:signBuf; if(!b) return;
+    var o=rev?Math.max(0,b.duration-at):Math.max(0,at||0); if(o>=b.duration-0.05) return;
+    var s=ac.createBufferSource(), g=ac.createGain(), t=ac.currentTime; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(SIGN_VOL,t+0.02);
+    s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); signSrc={s:s,g:g}; }
+  function signStop(ms){ if(!signSrc||!ac) return; var r=signSrc, t=ac.currentTime, d=(ms||300)/1000; signSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+d); try{ r.s.stop(t+d+.05); }catch(_){} }
   function stopRing(){ if(!ringSrc||!ac) return; var r=ringSrc, t=ac.currentTime; ringSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+.3); try{ r.s.stop(t+.35); }catch(_){} }
   var raw=fetch('../audio/hum-loop.wav').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
   function startSound(){
     if(!ac){ try{ var C=window.AudioContext||window.webkitAudioContext; try{ ac=new C({latencyHint:'playback'}); }catch(_){ ac=new C(); }
       out=ac.createGain(); out.gain.value=muted?0:1; var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.connect(out); out.connect(ac.destination); ac._in=lp; }catch(_){ return; } }
     if(ac.state!=='running'){ try{ ac.resume(); }catch(_){} }
-    if(started) return; started=true; ringPrep();
+    if(started) return; started=true; ringPrep(); signPrep();
     glitchRaw.then(function(a){ if(a && !glitchBuf) ac.decodeAudioData(a.slice(0),function(b){ glitchBuf=b; }); });
     raw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=b; s.loop=true; g.gain.setValueAtTime(0,ac.currentTime); g.gain.linearRampToValueAtTime(.2,ac.currentTime+1.5); s.connect(g); g.connect(ac._in); s.start(); }); });
   }
