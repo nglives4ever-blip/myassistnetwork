@@ -197,7 +197,13 @@
       var C=pvMat(pvName), u=pvU, T=[C[0]+(1-C[0])*u, C[1]*(1-u), C[2]*(1-u)-SHIFT0*u, C[3]*(1-u), C[4]+(1-C[4])*u, C[5]*(1-u)];
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
       ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720);
-      if(pvName==='sign'){ var tm=ctx.getTransform(), dq=DPR(); thQuad=[]; for(var ti=0;ti<8;ti+=2){ var tx=THEATRE[ti], ty=THEATRE[ti+1]; thQuad.push((tm.a*tx+tm.c*ty+tm.e)/dq, (tm.b*tx+tm.d*ty+tm.f)/dq); } }
+      if(pvName==='sign'){ var ta=thTitleAlpha(performance.now());
+        if(ta>0 && TITLE.complete && TITLE.naturalWidth){ var Q=THEATRE, bx0=Math.min(Q[0],Q[6]), bx1=Math.max(Q[2],Q[4]), by0=Math.min(Q[1],Q[3]), by1=Math.max(Q[5],Q[7]),
+            sw=bx1-bx0, sh=by1-by0, ir=TITLE.naturalWidth/TITLE.naturalHeight, push=1+0.05*Math.min(1,(performance.now()-(thT0||thOut-6000))/9000), dw, dh;
+          if(sw/sh>ir){ dw=sw; dh=sw/ir; } else { dh=sh; dw=sh*ir; } dw*=push; dh*=push;
+          ctx.save(); ctx.beginPath(); ctx.moveTo(Q[0],Q[1]); ctx.lineTo(Q[2],Q[3]); ctx.lineTo(Q[4],Q[5]); ctx.lineTo(Q[6],Q[7]); ctx.closePath(); ctx.clip();
+          ctx.globalAlpha=pvA*ta; ctx.drawImage(TITLE,(bx0+bx1-dw)/2,(by0+by1-dh)/2,dw,dh); ctx.restore(); }
+        var tm=ctx.getTransform(), dq=DPR(); thQuad=[]; for(var ti=0;ti<8;ti+=2){ var tx=THEATRE[ti], ty=THEATRE[ti+1]; thQuad.push((tm.a*tx+tm.c*ty+tm.e)/dq, (tm.b*tx+tm.d*ty+tm.f)/dq); } }
       if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720);
         if(snapA>0){ ctx.globalAlpha=pvA*pvLA*snapA; ctx.drawImage(snapCv,0,0,1280,720); } }
       ctx.restore(); }
@@ -401,6 +407,13 @@
   var THEATRE=[140,84,1140,84,1156,619,124,620];   /* screen corners in the sign film's last frame (1280x720 units) */
   var YT_URL='https://www.youtube-nocookie.com/embed/n7f4qZCHtsI?list=UUvxwOnxYexP6ChN1_0awFQw&autoplay=1&rel=0&modestbranding=1&playsinline=1';
   var thEl=null, thOn=false, thQuad=null, thW=0, thH=0;
+  /* Johnny's "Your Vision Your Story" title card: fades up out of the white screen with a slow push, holds, then the YouTube player takes over */
+  var TITLE=new Image(); TITLE.src='theatre-title.jpg'; var thT0=0, thOut=0, thRaf=0, TITLE_IN=2200, TITLE_HOLD=5200;
+  function thStart(){ var t0=thT0=performance.now(); thOut=0; cancelAnimationFrame(thRaf);
+    (function tick(){ if(thT0!==t0 && !thOut) return; draw(); if(thT0 || thOut) thRaf=requestAnimationFrame(tick); })();
+    setTimeout(function(){ if(thT0===t0 && pvName==='sign' && pvOn) thShow(); },TITLE_HOLD); }
+  function thTitleOut(){ if(!thT0) return; thOut=performance.now(); thT0=0; }
+  function thTitleAlpha(now){ if(thT0){ var u=Math.min(1,(now-thT0)/TITLE_IN); return u*u*(3-2*u); } if(thOut){ var v=1-(now-thOut)/450; if(v<=0){ thOut=0; return 0; } return v; } return 0; }
   function thShow(){ if(!thEl){ thEl=document.createElement('div'); thEl.id='theatre';
       thEl.innerHTML='<iframe title="Trinity Ark Studios on YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; document.body.appendChild(thEl); }
     var f=thEl.firstChild; if(f.getAttribute('src')!==YT_URL) f.setAttribute('src',YT_URL); thOn=true; draw(); requestAnimationFrame(function(){ if(thOn) thEl.classList.add('on'); }); }
@@ -487,13 +500,13 @@
       var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
         (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
-        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:(PV[name].yt?function(){ thShow(); }:function(){}))); };
+        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:(PV[name].yt?function(){ thStart(); }:function(){}))); };
       v._go=true; var pr=v.play(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
     if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone'); stopRing();
     if(loopOn || pvLA>0){ glitchPulse(0.35,380); playGlitch(0.4); stopLoop(320); }
-    if(thOn) thHide();   /* leaving the living poster: a quick glitch covers the jump back to the film */
+    if(thOn) thHide(); thTitleOut();   /* leaving the living poster: a quick glitch covers the jump back to the film */
     var name=pvName, f=pvEl[name].f, r=pvEl[name].r; if(!r){ stopSteps(); pressBtn.hidden=true; }
     var dur=f.duration||8, at=Math.min(f.ended?dur:f.currentTime, PV[name].hold);   /* skip the still hold at the end so it moves right away */
     var done=function(){ var a0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-a0)/300); pvA=1-t; draw(); if(t<1){ requestAnimationFrame(fade); return; }
