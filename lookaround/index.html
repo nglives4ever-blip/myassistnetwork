@@ -709,8 +709,8 @@
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); ringSrc={s:s,g:g}; }
   /* ---- sign film score: Johnny's own sound (1012.WAV), trimmed so its first hit lands on the click; its end hit (SIGN_HIT) is where the title fades up.
      Forward on the way in, reversed on the way out. ---- */
-  var SIGN_HIT=6.49, SIGN_VOL=0.7, signRaw=null, signBuf=null, signRev=null, signSrc=null;
-  function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v3.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
+  var SIGN_HIT=6.49, SIGN_VOL=1.0, signRaw=null, signBuf=null, signRev=null, signSrc=null;
+  function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v4.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
     signRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ signBuf=b; signRev=ac.createBuffer(b.numberOfChannels,b.length,b.sampleRate);
       for(var c=0;c<b.numberOfChannels;c++){ var d=b.getChannelData(c), e=signRev.getChannelData(c), L=d.length; for(var i=0;i<L;i++) e[i]=d[L-1-i]; } }); }); }
   function signPlay(rev,at){ if(!ac||muted) return; signStop(120); var b=rev?signRev:signBuf; if(!b) return;
