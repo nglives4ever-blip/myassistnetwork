@@ -425,10 +425,10 @@
   var YT_URL='https://www.youtube-nocookie.com/embed/n7f4qZCHtsI?list=UUvxwOnxYexP6ChN1_0awFQw&autoplay=1&rel=0&modestbranding=1&playsinline=1';
   var thEl=null, thOn=false, thQuad=null, thW=0, thH=0;
   /* Johnny's "Your Vision Your Story" title card: fades up out of the white screen with a slow push, holds, then the YouTube player takes over */
-  var TITLE=new Image(); TITLE.src='theatre-title.jpg'; var thT0=0, thOut=0, thRaf=0, TITLE_IN=700;
+  var TITLE=new Image(); TITLE.src='theatre-title.jpg'; var thT0=0, thOut=0, thRaf=0, TITLE_IN=180, BTN_IN=700;   /* the title snaps up on the hit; the play button follows a beat later */
   function thStart(){ var t0=thT0=performance.now(); thOut=0; cancelAnimationFrame(thRaf);
     (function tick(){ if(thT0!==t0 && !thOut) return; draw(); if(thT0 || thOut) thRaf=requestAnimationFrame(tick); })();
-    setTimeout(function(){ if(thT0===t0 && pvName==='sign' && pvOn && !thOn) thPlayBtn(true); },TITLE_IN); }
+    setTimeout(function(){ if(thT0===t0 && pvName==='sign' && pvOn && !thOn) thPlayBtn(true); },BTN_IN); }
   /* PRESS PLAY on the title card: the YouTube film only starts when they ask for it (and the click lets it play with sound) */
   var thBtn=null;
   var thHit=null;
@@ -443,7 +443,7 @@
   function thPlaceBtn(){ if(!thBtn || !thQuad) return; var q=thQuad, cx=(q[0]+q[2]+q[4]+q[6])/4, cy=(q[1]+q[3]+q[5]+q[7])/4, by=Math.min(innerHeight-90, cy+(q[5]+q[7]-q[1]-q[3])/2*0.32);
     thBtn.style.left=Math.max(70,Math.min(innerWidth-70,cx))+'px'; thBtn.style.top=by+'px'; }
   function thTitleOut(){ thPlayBtn(false); if(!thT0) return; thOut=performance.now(); thT0=0; }
-  function thTitleAlpha(now){ if(thT0){ var u=Math.min(1,(now-thT0)/TITLE_IN); return u*u*(3-2*u); } if(thOut){ var v=1-(now-thOut)/450; if(v<=0){ thOut=0; return 0; } return v; } return 0; }
+  function thTitleAlpha(now){ if(thT0){ var u=Math.min(1,(now-thT0)/TITLE_IN); return 1-(1-u)*(1-u); } if(thOut){ var v=1-(now-thOut)/450; if(v<=0){ thOut=0; return 0; } return v; } return 0; }
   function thShow(){ if(!thEl){ thEl=document.createElement('div'); thEl.id='theatre';
       thEl.innerHTML='<iframe title="Trinity Ark Studios on YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; document.body.appendChild(thEl); }
     var f=thEl.firstChild; if(f.getAttribute('src')!==YT_URL) f.setAttribute('src',YT_URL); thOn=true; draw(); requestAnimationFrame(function(){ if(thOn) thEl.classList.add('on'); }); }
@@ -709,7 +709,7 @@
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); ringSrc={s:s,g:g}; }
   /* ---- sign film score: Johnny's own sound (1012.WAV), trimmed so its first hit lands on the click; its end hit (SIGN_HIT) is where the title fades up.
      Forward on the way in, reversed on the way out. ---- */
-  var SIGN_HIT=6.49, SIGN_VOL=1.0, signRaw=null, signBuf=null, signRev=null, signSrc=null;
+  var SIGN_HIT=6.39, SIGN_VOL=1.0, signRaw=null, signBuf=null, signRev=null, signSrc=null;
   function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v10.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
     signRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ signBuf=b; signRev=ac.createBuffer(b.numberOfChannels,b.length,b.sampleRate);
       for(var c=0;c<b.numberOfChannels;c++){ var d=b.getChannelData(c), e=signRev.getChannelData(c), L=d.length; for(var i=0;i<L;i++) e[i]=d[L-1-i]; } }); }); }
