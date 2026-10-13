@@ -446,8 +446,11 @@
   function thTitleAlpha(now){ if(thT0){ var u=Math.min(1,(now-thT0)/TITLE_IN); return 1-(1-u)*(1-u); } if(thOut){ var v=1-(now-thOut)/450; if(v<=0){ thOut=0; return 0; } return v; } return 0; }
   function thShow(){ if(!thEl){ thEl=document.createElement('div'); thEl.id='theatre';
       thEl.innerHTML='<iframe title="Trinity Ark Studios on YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; document.body.appendChild(thEl); }
-    var f=thEl.firstChild; if(f.getAttribute('src')!==YT_URL) f.setAttribute('src',YT_URL); thOn=true; draw(); requestAnimationFrame(function(){ if(thOn) thEl.classList.add('on'); }); }
-  function thHide(){ thOn=false; if(!thEl) return; thEl.classList.remove('on'); var f=thEl.firstChild; setTimeout(function(){ if(!thOn) f.setAttribute('src','about:blank'); },350); }
+    var f=thEl.firstChild; if(f.getAttribute('src')!==YT_URL) f.setAttribute('src',YT_URL); thOn=true; siteQuiet(true); draw(); requestAnimationFrame(function(){ if(thOn) thEl.classList.add('on'); }); }
+  /* while the YouTube video plays, the site's own sound (hum, sign score) fades out so only the video is heard; it comes back on step back */
+  var ytQuiet=false;
+  function siteQuiet(on){ ytQuiet=on; if(!out||!ac) return; var t=ac.currentTime, g=out.gain; try{ g.cancelScheduledValues(t); }catch(_){} g.setValueAtTime(g.value,t); g.linearRampToValueAtTime((muted||on)?0:1, t+(on?0.6:1.2)); }
+  function thHide(){ thOn=false; if(ytQuiet) siteQuiet(false); if(!thEl) return; thEl.classList.remove('on'); var f=thEl.firstChild; setTimeout(function(){ if(!thOn) f.setAttribute('src','about:blank'); },350); }
   function thPlace(el){ el=el||thEl; if(!el || !thQuad) return; var q=thQuad, vw=innerWidth, vh=innerHeight, M=8, inside=true;
     for(var i=0;i<8;i+=2){ if(q[i]<M || q[i]>vw-M || q[i+1]<M || q[i+1]>vh-M) inside=false; }
     var w,h,css;
@@ -733,7 +736,7 @@
     raw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ var s=ac.createBufferSource(), g=ac.createGain(); s.buffer=b; s.loop=true; g.gain.setValueAtTime(0,ac.currentTime); g.gain.linearRampToValueAtTime(.2,ac.currentTime+1.5); s.connect(g); g.connect(ac._in); s.start(); }); });
   }
   function paint(){ document.getElementById('on').toggleAttribute('hidden',muted); document.getElementById('off').toggleAttribute('hidden',!muted); muteBtn.classList.toggle('is-muted',muted); muteBtn.setAttribute('aria-pressed',String(muted)); muteBtn.setAttribute('aria-label',muted?'Sound on':'Sound off'); }
-  muteBtn.addEventListener('click',function(){ muted=!muted; if(!muted) startSound(); if(out) out.gain.value=muted?0:1; paint(); });
+  muteBtn.addEventListener('click',function(){ muted=!muted; if(!muted) startSound(); if(out){ try{ out.gain.cancelScheduledValues(ac.currentTime); }catch(_){} out.gain.value=(muted||ytQuiet)?0:1; } paint(); });
   function firstGo(){ if(!muted) startSound(); }
   ['pointerdown','touchstart','keydown'].forEach(function(t){ window.addEventListener(t,firstGo,{once:true,capture:true,passive:true}); });
   paint();
