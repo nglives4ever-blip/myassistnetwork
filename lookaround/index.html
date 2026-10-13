@@ -507,10 +507,12 @@
   function pvRun(name, v, rev, onEnd){
     var dur=v.duration||8, g=PV[name].glitch, sounded=false, rg=PV[name].ring, rung=false;
     if(rg) ringPrep();
-    var scored=!PV[name].yt;
+    var scored=!PV[name].yt, lastSync=0;
     (function loop(){ if(!pvOn) return;
       var et=rev ? dur-v.currentTime : v.currentTime;
-      if(!scored && (signBuf||!signRaw)){ scored=true; signPlay(rev,et); }
+      if(!scored && (signBuf||!signRaw)){ scored=true; signPlay(rev,et); lastSync=performance.now(); }
+      else if(scored && PV[name].yt && signSrc && !v.paused && !v.ended && performance.now()-lastSync>400){   /* the film stalled or jumped: put the sound back on the picture */
+        var sp=signPos(); if(sp!==null && Math.abs(sp-et)>0.08){ lastSync=performance.now(); signPlay(rev,et); } }
       var uu=Math.max(0,Math.min(1,(et-0.3)/2.4)); pvU=uu*uu*(3-2*uu);
       if(rg && !rung){ var RD=ringBuf?ringBuf.duration:2.2;   /* ring splash: forward on the burst, backwards ending as the ring closes */
         if(!rev && et>=rg){ rung=true; playRing(false,0); } else if(rev && et<=rg+RD){ rung=true; if(et>rg) playRing(true,rg+RD-et); } }
@@ -709,14 +711,16 @@
     s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); ringSrc={s:s,g:g}; }
   /* ---- sign film score: Johnny's own sound (1012.WAV), trimmed so its first hit lands on the click; its end hit (SIGN_HIT) is where the title fades up.
      Forward on the way in, reversed on the way out. ---- */
-  var SIGN_HIT=6.39, SIGN_VOL=1.0, signRaw=null, signBuf=null, signRev=null, signSrc=null;
+  var SIGN_HIT=6.31, SIGN_VOL=1.0, signRaw=null, signBuf=null, signRev=null, signSrc=null;
   function signPrep(){ if(signRaw||!ac) return; signRaw=fetch('../audio/sign-sound-v10.mp3').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
     signRaw.then(function(a){ if(!a) return; ac.decodeAudioData(a,function(b){ signBuf=b; signRev=ac.createBuffer(b.numberOfChannels,b.length,b.sampleRate);
       for(var c=0;c<b.numberOfChannels;c++){ var d=b.getChannelData(c), e=signRev.getChannelData(c), L=d.length; for(var i=0;i<L;i++) e[i]=d[L-1-i]; } }); }); }
   function signPlay(rev,at){ if(!ac||muted) return; signStop(120); var b=rev?signRev:signBuf; if(!b) return;
-    var lat=(ac.outputLatency||ac.baseLatency||0), o=rev?Math.max(0,b.duration-at-lat):Math.max(0,(at||0)+lat);   /* skip ahead by the speaker delay so the hits land with the picture */ if(o>=b.duration-0.05) return;
+    var lat=(ac.outputLatency||ac.baseLatency||0), o=rev?Math.max(0,b.duration-at+lat):Math.max(0,(at||0)+lat);   /* skip ahead by the speaker delay so the hits land with the picture */ if(o>=b.duration-0.05) return;
     var s=ac.createBufferSource(), g=ac.createGain(), t=ac.currentTime; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(SIGN_VOL,t+0.02);
-    s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); signSrc={s:s,g:g}; }
+    s.buffer=b; s.connect(g); g.connect(out); s.start(t,o); signSrc={s:s,g:g,t0:t,o:o,rev:!!rev,lat:lat,dur:b.duration}; }
+  /* where the sound is right now, on the film's forward timeline (null if it is not playing) */
+  function signPos(){ if(!signSrc||!ac) return null; var p=signSrc.o+(ac.currentTime-signSrc.t0)-signSrc.lat; return signSrc.rev?signSrc.dur-p:p; }
   function signStop(ms){ if(!signSrc||!ac) return; var r=signSrc, t=ac.currentTime, d=(ms||300)/1000; signSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+d); try{ r.s.stop(t+d+.05); }catch(_){} }
   function stopRing(){ if(!ringSrc||!ac) return; var r=ringSrc, t=ac.currentTime; ringSrc=null; try{ r.g.gain.cancelScheduledValues(t); }catch(_){} r.g.gain.setValueAtTime(r.g.gain.value,t); r.g.gain.linearRampToValueAtTime(0,t+.3); try{ r.s.stop(t+.35); }catch(_){} }
   var raw=fetch('../audio/hum-loop.wav').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; });
