@@ -24,6 +24,11 @@
   canvas.focused ~ .vfoot{opacity:0}
   #theatre{position:fixed;left:0;top:0;z-index:1;transform-origin:0 0;opacity:0;pointer-events:none;transition:opacity .7s ease;background:#000;box-shadow:0 0 40px rgba(255,255,255,.08)}
   #theatre.on{opacity:1;pointer-events:auto}
+  #thPlay{position:fixed;z-index:3;transform:translate(-50%,-50%) scale(.92);display:flex;align-items:center;gap:10px;padding:13px 24px 13px 20px;font:inherit;font-size:13px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#F6E7C4;
+    background:linear-gradient(180deg,rgba(26,22,16,.92),rgba(12,11,9,.92));border:2px solid rgba(240,196,110,.9);border-radius:999px;box-shadow:0 0 26px rgba(240,196,110,.5);
+    opacity:0;pointer-events:none;transition:opacity .5s ease,transform .5s ease;cursor:url(hand-point.png) 4 2,pointer;cursor:-webkit-image-set(url(hand-point.png) 1x,url(hand-point@2x.png) 2x) 4 2,pointer}
+  #thPlay.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);animation:glow 2.2s ease-in-out infinite}
+  #thPlay svg{color:#F0C46E}
   #theatre iframe{display:block;width:100%;height:100%;border:0}
   .vfoot a{color:inherit!important;text-decoration:none!important;pointer-events:none}   /* iPhone turns the company number into a blue phone link: keep it plain */
   .tip{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top,0px));z-index:2;transform:translate(-50%,-6px);width:max-content;max-width:min(254px,calc(100vw - 40px));display:flex;align-items:center;gap:10px;
@@ -198,11 +203,15 @@
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
       ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720);
       if(pvName==='sign'){ var ta=thTitleAlpha(performance.now());
-        if(ta>0 && TITLE.complete && TITLE.naturalWidth){ var Q=THEATRE, bx0=Math.min(Q[0],Q[6]), bx1=Math.max(Q[2],Q[4]), by0=Math.min(Q[1],Q[3]), by1=Math.max(Q[5],Q[7]),
-            sw=bx1-bx0, sh=by1-by0, ir=TITLE.naturalWidth/TITLE.naturalHeight, push=1+0.05*Math.min(1,(performance.now()-(thT0||thOut-6000))/9000), dw, dh;
-          if(sw/sh>ir){ dw=sw; dh=sw/ir; } else { dh=sh; dw=sh*ir; } dw*=push; dh*=push;
+        if(ta>0 && TITLE.complete && TITLE.naturalWidth){ var Q=screenQuad(), bx0=Math.min(Q[0],Q[6]), bx1=Math.max(Q[2],Q[4]), by0=Math.min(Q[1],Q[3]), by1=Math.max(Q[5],Q[7]),
+            ir=TITLE.naturalWidth/TITLE.naturalHeight, push=1+0.05*Math.min(1,(performance.now()-(thT0||thOut-6000))/9000), dw, dh,
+            im=ctx.getTransform().inverse(), vx0=im.a*0+im.e, vx1=im.a*cv.width+im.e;   /* the part of the film the screen can actually see */
+          var narrow=(vx1-vx0)<(bx1-bx0)*0.8;   /* phone: the cinema screen is wider than the phone, so fit the whole title into what you can see */
+          if(narrow){ var cx0=Math.max(bx0,vx0+6), cx1=Math.min(bx1,vx1-6); dw=(cx1-cx0)*push; dh=dw/ir; var mx=(cx0+cx1)/2, my=(by0+by1)/2-(by1-by0)*0.06; }
+          else { var sw=bx1-bx0, sh=by1-by0; if(sw/sh>ir){ dw=sw; dh=sw/ir; } else { dh=sh; dw=sh*ir; } dw*=push; dh*=push; var mx=(bx0+bx1)/2, my=(by0+by1)/2; }
           ctx.save(); ctx.beginPath(); ctx.moveTo(Q[0],Q[1]); ctx.lineTo(Q[2],Q[3]); ctx.lineTo(Q[4],Q[5]); ctx.lineTo(Q[6],Q[7]); ctx.closePath(); ctx.clip();
-          ctx.globalAlpha=pvA*ta; ctx.drawImage(TITLE,(bx0+bx1-dw)/2,(by0+by1-dh)/2,dw,dh); ctx.restore(); }
+          ctx.globalAlpha=pvA*ta; if(narrow){ ctx.fillStyle='#050505'; ctx.fillRect(bx0,by0,bx1-bx0,by1-by0); }
+          ctx.drawImage(TITLE,mx-dw/2,my-dh/2,dw,dh); ctx.restore(); }
         var tm=ctx.getTransform(), dq=DPR(); thQuad=[]; for(var ti=0;ti<8;ti+=2){ var tx=THEATRE[ti], ty=THEATRE[ti+1]; thQuad.push((tm.a*tx+tm.c*ty+tm.e)/dq, (tm.b*tx+tm.d*ty+tm.f)/dq); } }
       if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720);
         if(snapA>0){ ctx.globalAlpha=pvA*pvLA*snapA; ctx.drawImage(snapCv,0,0,1280,720); } }
@@ -235,7 +244,7 @@
       ctx.restore(); }
     if((cueOn || (flashName && nowT-flashT0<900)) && !cueRaf){ cueRaf=setTimeout(function(){ cueRaf=0; draw(); },33); }   /* keep the breathing going, gently */
     if(gA>0.02) applyGlitch(gA);
-    if(thOn) thPlace();
+    if(thOn) thPlace(); if(thBtn && thBtn.classList.contains('on')) thPlaceBtn();
   }); }
   /* ---- grab zoom: the camera leans in when you take hold, which hides the hand-off between the still and the footage ---- */
   var zoom=1, zoomRaf=0, GRAB_ZOOM=1.07;
@@ -404,15 +413,26 @@
   }
   /* ---- the theatre: at the end of the sign film a live YouTube player (Trinity Ark Studios channel, starting on the VFX reel) sits on the cinema screen.
      Desktop: bent onto the screen's exact corners. Phone (screen wider than the phone): fills the part of the screen you can see. Click outside it to step back. ---- */
-  var THEATRE=[140,84,1140,84,1156,619,124,620];   /* screen corners in the sign film's last frame (1280x720 units) */
+  var THEATRE=[140,84,1140,84,1156,619,124,620];
+  var SCREEN_F0=150, SCREENQ=[[95,59,1185,60,1204,643,75,644],[97,60,1184,60,1202,642,77,643],[99,61,1181,61,1200,641,80,642],[101,62,1179,63,1197,640,83,640],[104,64,1176,64,1195,639,85,639],[106,65,1174,65,1192,638,88,637],[108,66,1172,67,1190,636,90,636],[110,68,1170,68,1188,635,92,635],[112,69,1168,69,1186,634,94,634],[114,70,1166,70,1184,633,96,633],[116,71,1164,71,1182,632,98,632],[118,72,1162,72,1180,631,100,631],[119,72,1161,73,1178,631,102,630],[121,73,1159,73,1176,630,103,629],[122,74,1158,74,1175,629,105,629],[124,75,1157,75,1173,628,106,628],[125,76,1155,76,1172,628,108,627],[126,76,1154,76,1171,627,109,627],[127,77,1153,77,1169,626,110,626],[128,77,1152,78,1168,626,111,625],[129,78,1151,78,1167,625,112,625],[130,79,1150,79,1166,625,113,624],[131,79,1149,79,1165,624,114,624],[132,80,1148,80,1164,624,115,623],[133,80,1147,80,1163,623,116,623],[134,80,1146,80,1162,623,117,623],[134,81,1146,81,1161,623,118,622],[135,81,1145,81,1161,622,118,622],[136,81,1144,81,1160,622,119,622],[136,82,1144,82,1160,622,120,621],[137,82,1143,82,1159,621,120,621],[137,82,1143,82,1159,621,121,621],[137,83,1142,83,1158,621,121,621],[138,83,1142,83,1158,621,121,620],[138,83,1141,83,1157,621,122,620],[138,83,1141,83,1157,620,122,620],[139,83,1141,83,1157,620,122,620],[139,83,1141,83,1156,620,123,620],[140,83,1140,84,1156,620,123,620],[140,83,1140,84,1156,620,123,619],[140,84,1140,84,1155,620,123,619],[140,84,1140,84,1156,619,124,620]];   /* the screen's corners from film frame 150 (6.25s) to the end, so the title can ride the last of the camera move */
+  function screenQuad(){ var v=pvCur; if(!v) return THEATRE; var d=v.duration||8, t=(v===(pvEl.sign&&pvEl.sign.r))?d-v.currentTime:v.currentTime, fi=t*24-SCREEN_F0;
+    if(fi>=SCREENQ.length-1) return THEATRE; if(fi<=0) return SCREENQ[0]; var i=Math.floor(fi), u=fi-i, a=SCREENQ[i], b=SCREENQ[i+1], r=[]; for(var j=0;j<8;j++) r.push(a[j]+(b[j]-a[j])*u); return r; }   /* screen corners in the sign film's last frame (1280x720 units) */
   var YT_URL='https://www.youtube-nocookie.com/embed/n7f4qZCHtsI?list=UUvxwOnxYexP6ChN1_0awFQw&autoplay=1&rel=0&modestbranding=1&playsinline=1';
   var thEl=null, thOn=false, thQuad=null, thW=0, thH=0;
   /* Johnny's "Your Vision Your Story" title card: fades up out of the white screen with a slow push, holds, then the YouTube player takes over */
-  var TITLE=new Image(); TITLE.src='theatre-title.jpg'; var thT0=0, thOut=0, thRaf=0, TITLE_IN=2200, TITLE_HOLD=5200;
+  var TITLE=new Image(); TITLE.src='theatre-title.jpg'; var thT0=0, thOut=0, thRaf=0, TITLE_IN=700;
   function thStart(){ var t0=thT0=performance.now(); thOut=0; cancelAnimationFrame(thRaf);
     (function tick(){ if(thT0!==t0 && !thOut) return; draw(); if(thT0 || thOut) thRaf=requestAnimationFrame(tick); })();
-    setTimeout(function(){ if(thT0===t0 && pvName==='sign' && pvOn) thShow(); },TITLE_HOLD); }
-  function thTitleOut(){ if(!thT0) return; thOut=performance.now(); thT0=0; }
+    setTimeout(function(){ if(thT0===t0 && pvName==='sign' && pvOn && !thOn) thPlayBtn(true); },TITLE_IN); }
+  /* PRESS PLAY on the title card: the YouTube film only starts when they ask for it (and the click lets it play with sound) */
+  var thBtn=null;
+  function thPlayBtn(show){ if(show && !thBtn){ thBtn=document.createElement('button'); thBtn.id='thPlay'; thBtn.type='button'; thBtn.setAttribute('aria-label','Play the Trinity Ark Studios reel');
+      thBtn.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg><span>Press play</span>';
+      thBtn.addEventListener('click',function(e){ e.stopPropagation(); startSound(); thPlayBtn(false); thShow(); }); document.body.appendChild(thBtn); }
+    if(!thBtn) return; if(show){ thPlaceBtn(); requestAnimationFrame(function(){ thBtn.classList.add('on'); }); } else thBtn.classList.remove('on'); }
+  function thPlaceBtn(){ if(!thBtn || !thQuad) return; var q=thQuad, cx=(q[0]+q[2]+q[4]+q[6])/4, cy=(q[1]+q[3]+q[5]+q[7])/4, by=Math.min(innerHeight-90, cy+(q[5]+q[7]-q[1]-q[3])/2*0.32);
+    thBtn.style.left=Math.max(70,Math.min(innerWidth-70,cx))+'px'; thBtn.style.top=by+'px'; }
+  function thTitleOut(){ thPlayBtn(false); if(!thT0) return; thOut=performance.now(); thT0=0; }
   function thTitleAlpha(now){ if(thT0){ var u=Math.min(1,(now-thT0)/TITLE_IN); return u*u*(3-2*u); } if(thOut){ var v=1-(now-thOut)/450; if(v<=0){ thOut=0; return 0; } return v; } return 0; }
   function thShow(){ if(!thEl){ thEl=document.createElement('div'); thEl.id='theatre';
       thEl.innerHTML='<iframe title="Trinity Ark Studios on YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; document.body.appendChild(thEl); }
@@ -485,7 +505,8 @@
       if(g && et>=g[0] && et<=g[1]){ if(!sounded){ sounded=true; playGlitch(0.5); } var u=(et-g[0])/(g[1]-g[0]); gA=0.4*Math.sin(Math.PI*u)*(0.8+0.2*Math.random()); }
       else if(gA>0) gA=Math.max(0,gA-0.15);
       if(!rev && !v._held && !PV[name].noRev && et>=PV[name].hold){ v._held=true; backCue(); }
-      if(!rev && PV[name].loop && !v._looped && et>=dur-0.15){ v._looped=true; startLoop(name); }   /* start the loop a beat early so there is no still moment at the hand-off */
+      if(!rev && PV[name].loop && !v._looped && et>=dur-0.15){ v._looped=true; startLoop(name); }
+      if(!rev && PV[name].yt && !v._looped && et>=5.95){ v._looped=true; thStart(); }   /* the title comes up while the camera is still settling on the screen: almost no bare white */   /* start the loop a beat early so there is no still moment at the hand-off */
       draw(); if(v.ended){ gA=0; draw(); onEnd(); return; } pvRaf=requestAnimationFrame(loop); })();
   }
   function playPoster(name){
@@ -500,7 +521,7 @@
       var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
         (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
-        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:(PV[name].yt?function(){ thStart(); }:function(){}))); };
+        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:(PV[name].yt?function(){ if(!thT0 && !thOn) thStart(); }:function(){}))); };
       v._go=true; var pr=v.play(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
