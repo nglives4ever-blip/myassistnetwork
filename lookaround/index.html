@@ -22,6 +22,9 @@
   .hint.gone{opacity:0}
   .vfoot{position:fixed;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0;padding-inline:16px;text-align:center;font-size:10px;letter-spacing:.4px;color:rgba(243,230,200,.55);text-shadow:0 1px 4px rgba(0,0,0,.8);pointer-events:none;z-index:2;transition:opacity .4s ease}
   canvas.focused ~ .vfoot{opacity:0}
+  #theatre{position:fixed;left:0;top:0;z-index:1;transform-origin:0 0;opacity:0;pointer-events:none;transition:opacity .7s ease;background:#000;box-shadow:0 0 40px rgba(255,255,255,.08)}
+  #theatre.on{opacity:1;pointer-events:auto}
+  #theatre iframe{display:block;width:100%;height:100%;border:0}
   .vfoot a{color:inherit!important;text-decoration:none!important;pointer-events:none}   /* iPhone turns the company number into a blue phone link: keep it plain */
   .tip{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top,0px));z-index:2;transform:translate(-50%,-6px);width:max-content;max-width:min(254px,calc(100vw - 40px));display:flex;align-items:center;gap:10px;
     padding:9px 16px 9px 13px;background:rgba(0,0,0,.49);border:1px solid rgba(240,196,110,.37);border-radius:22px;color:var(--cream);font-size:14px;font-weight:600;line-height:1.35;
@@ -194,6 +197,7 @@
       var C=pvMat(pvName), u=pvU, T=[C[0]+(1-C[0])*u, C[1]*(1-u), C[2]*(1-u)-SHIFT0*u, C[3]*(1-u), C[4]+(1-C[4])*u, C[5]*(1-u)];
       ctx.save(); ctx.translate(x0,y0); ctx.scale(k,k); ctx.transform(T[0],T[3],T[1],T[4],T[2],T[5]);
       ctx.globalAlpha=pvA; ctx.drawImage(pvCur,0,0,1280,720);
+      if(pvName==='sign'){ var tm=ctx.getTransform(), dq=DPR(); thQuad=[]; for(var ti=0;ti<8;ti+=2){ var tx=THEATRE[ti], ty=THEATRE[ti+1]; thQuad.push((tm.a*tx+tm.c*ty+tm.e)/dq, (tm.b*tx+tm.d*ty+tm.f)/dq); } }
       if(pvLA>0 && pvLoop && pvLoop.readyState>=2){ ctx.globalAlpha=pvA*pvLA; ctx.drawImage(pvLoop,0,0,1280,720);
         if(snapA>0){ ctx.globalAlpha=pvA*pvLA*snapA; ctx.drawImage(snapCv,0,0,1280,720); } }
       ctx.restore(); }
@@ -225,6 +229,7 @@
       ctx.restore(); }
     if((cueOn || (flashName && nowT-flashT0<900)) && !cueRaf){ cueRaf=setTimeout(function(){ cueRaf=0; draw(); },33); }   /* keep the breathing going, gently */
     if(gA>0.02) applyGlitch(gA);
+    if(thOn) thPlace();
   }); }
   /* ---- grab zoom: the camera leans in when you take hold, which hides the hand-off between the still and the footage ---- */
   var zoom=1, zoomRaf=0, GRAB_ZOOM=1.07;
@@ -357,6 +362,7 @@
   var P0=78, POSTERS={
     left:[[171,7,240,5,283,81,260,328,139,272],[161,4,231,2,275,79,251,327,128,270],[150,0,220,-2,265,76,240,326,115,267],[137,-5,208,-6,253,73,227,324,101,265],[122,-10,195,-10,240,70,213,322,85,262],[106,-15,180,-15,226,66,198,320,67,259],[89,-22,164,-20,210,62,181,318,48,255],[70,-30,147,-27,194,56,162,315,27,250],[49,-38,129,-34,176,51,142,312,3,246],[27,-47,109,-42,157,45,122,308,-21,241],[2,-57,87,-50,136,38,99,304,-48,235],[-23,-67,65,-60,115,31,75,301,-77,229],[-52,-80,39,-71,91,22,49,296,-108,223],[-83,-93,12,-84,66,13,21,290,-139,214],[-89,-74,-14,-81,38,1,-13,321,-152,196],[-122,-89,-44,-95,10,-10,-45,316,-190,186],[-158,-104,-76,-108,-21,-21,-79,310,-231,177],[-194,-119,-108,-122,-51,-32,-113,305,-271,168],[-231,-135,-141,-137,-82,-44,-148,299,-313,157],[-270,-153,-176,-153,-114,-57,-185,293,-359,146],[-312,-173,-212,-170,-148,-71,-223,287,-406,134],[-354,-192,-250,-188,-183,-85,-262,280,-455,122],[-402,-217,-290,-210,-220,-102,-304,272,-511,105],[-443,-237,-326,-227,-253,-116,-342,265,-558,93],[-492,-262,-368,-249,-290,-133,-386,257,-617,76],[-549,-296,-414,-278,-332,-155,-433,247,-684,55],[-614,-333,-467,-310,-378,-179,-488,236,-762,31],[-668,-358,-513,-331,-420,-196,-536,228,-826,15],[-732,-387,-567,-356,-469,-216,-594,219,-904,-4],[-770,-390,-604,-361,-506,-221,-636,216,-946,-5],[-885,-454,-696,-414,-586,-261,-734,197,-1093,-48],[-988,-502,-780,-454,-660,-291,-824,184,-1222,-79],[-1063,-519,-847,-472,-722,-306,-889,182,-1300,-84],[-1191,-578,-945,-515,-812,-340,-1023,157,-1499,-139],[-1480,-763,-1155,-659,-985,-446,-1251,104,-1905,-274],[-1818,-962,-1394,-808,-1179,-553,-1515,48,-2401,-427],[-1321,-621,-1119,-582,-950,-390,-943,96,-1327,-154],[-1535,-737,-1294,-680,-1096,-463,-1089,62,-1543,-222],[-1802,-872,-1507,-794,-1274,-547,-1275,20,-1823,-308],[-2133,-1055,-1763,-942,-1480,-653,-1486,-30,-2166,-418],[-2641,-1345,-2137,-1167,-1770,-808,-1782,-104,-2692,-594]],
     freedom:[[1219,-10,1348,-124,1408,230,1261,285],[1208,-8,1340,-128,1397,234,1249,285],[1196,-4,1324,-118,1378,233,1236,288],[1183,3,1308,-110,1363,236,1221,291],[1169,8,1292,-103,1344,239,1205,294],[1154,13,1274,-95,1323,243,1188,297],[1138,17,1256,-86,1302,246,1170,300],[1121,22,1237,-79,1281,250,1152,302],[1104,27,1218,-72,1259,253,1133,304],[1086,31,1198,-65,1237,257,1113,306],[1068,37,1178,-57,1214,261,1093,309],[1049,41,1157,-49,1191,264,1073,311],[1030,46,1136,-42,1168,268,1052,313],[1010,51,1115,-35,1144,272,1031,315],[990,55,1093,-28,1120,274,1009,317],[970,58,1072,-22,1097,277,987,319],[950,62,1050,-16,1073,280,965,320],[930,65,1029,-11,1050,282,945,322],[911,68,1009,-6,1028,284,924,323],[893,70,990,-2,1007,286,904,324],[875,72,971,2,987,288,885,324],[857,74,953,6,967,289,866,325],[840,75,935,8,948,290,848,325],[824,76,918,10,930,291,831,325],[808,77,902,13,912,292,814,325],[793,77,886,15,895,292,798,325],[777,78,870,17,878,292,781,324],[760,79,853,18,860,293,763,324],[742,79,835,20,841,294,744,324],[723,80,816,22,820,294,724,324],[703,80,795,24,798,295,703,324],[681,80,773,26,775,296,680,324],[658,80,750,27,750,296,655,324],[634,80,726,28,725,297,630,323],[608,80,700,29,698,297,603,323],[582,79,674,30,671,297,575,322],[554,77,648,30,642,297,546,321],[526,75,620,30,613,296,517,320],[497,72,592,29,584,296,486,318],[467,70,563,27,554,295,455,316],[437,65,534,25,522,293,423,314]]
+    ,sign:[[542,67,907,49,915,282,549,294],[535,66,900,50,906,282,542,294],[527,65,891,52,897,283,533,293],[518,64,881,53,886,284,523,292],[508,62,871,55,875,285,512,292],[496,61,859,57,863,286,500,291],[484,59,847,59,850,287,487,290],[471,57,834,60,836,287,473,289],[457,54,820,62,821,288,459,287],[443,51,806,63,806,288,443,285],[427,48,792,64,791,289,427,284],[411,45,776,66,774,290,409,282],[394,42,760,67,757,290,391,280],[375,37,744,68,740,290,371,277],[356,33,726,68,721,290,351,275],[336,28,709,68,703,290,330,272],[315,22,691,68,684,290,308,268],[294,17,673,68,665,289,286,265],[274,11,656,67,647,289,264,262],[253,5,639,67,629,288,241,258],[231,-2,622,65,611,287,219,255],[210,-9,606,64,594,286,197,250],[188,-16,589,62,576,285,174,246],[167,-24,573,60,560,283,152,242],[144,-32,557,58,543,282,128,237],[127,-37,542,57,527,280,108,232],[104,-46,527,54,511,279,85,229],[76,-57,509,52,492,277,56,222],[53,-63,491,50,473,276,32,219],[25,-74,472,47,452,273,1,211],[-7,-87,450,43,430,271,-31,205],[-43,-100,426,39,405,269,-70,197],[-83,-116,402,36,379,267,-115,189],[-127,-133,375,31,351,264,-160,179],[-175,-152,347,26,321,260,-212,168],[-229,-176,317,19,289,256,-271,155],[-274,-192,285,13,255,252,-321,142],[-341,-223,252,5,219,247,-394,126],[-423,-266,217,-6,183,242,-481,106],[-487,-292,181,-14,143,236,-553,86],[-572,-335,143,-26,101,229,-649,62]]   /* the big TRINITY ARK STUDIOS sign over the front desk (tracked from the HD lobby) */
   };
   var hover=null, focus=null, ft=0, ftRaf=0, pressName=null, flashName=null, flashT0=0, cueOn=false, cueRaf=0;
   /* the kiosk in front of the vault (frame 0, source pixels); it slides with your hand while you're near the vault */
@@ -390,10 +396,35 @@
     ftTo(1,1100);
     backCue();
   }
+  /* ---- the theatre: at the end of the sign film a live YouTube player (Trinity Ark Studios channel, starting on the VFX reel) sits on the cinema screen.
+     Desktop: bent onto the screen's exact corners. Phone (screen wider than the phone): fills the part of the screen you can see. Click outside it to step back. ---- */
+  var THEATRE=[140,84,1140,84,1156,619,124,620];   /* screen corners in the sign film's last frame (1280x720 units) */
+  var YT_URL='https://www.youtube-nocookie.com/embed/n7f4qZCHtsI?list=UUvxwOnxYexP6ChN1_0awFQw&autoplay=1&rel=0&modestbranding=1&playsinline=1';
+  var thEl=null, thOn=false, thQuad=null, thW=0, thH=0;
+  function thShow(){ if(!thEl){ thEl=document.createElement('div'); thEl.id='theatre';
+      thEl.innerHTML='<iframe title="Trinity Ark Studios on YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; document.body.appendChild(thEl); }
+    var f=thEl.firstChild; if(f.getAttribute('src')!==YT_URL) f.setAttribute('src',YT_URL); thOn=true; draw(); requestAnimationFrame(function(){ if(thOn) thEl.classList.add('on'); }); }
+  function thHide(){ thOn=false; if(!thEl) return; thEl.classList.remove('on'); var f=thEl.firstChild; setTimeout(function(){ if(!thOn) f.setAttribute('src','about:blank'); },350); }
+  function thPlace(){ if(!thEl || !thQuad) return; var q=thQuad, vw=innerWidth, vh=innerHeight, M=8, inside=true;
+    for(var i=0;i<8;i+=2){ if(q[i]<M || q[i]>vw-M || q[i+1]<M || q[i+1]>vh-M) inside=false; }
+    var w,h,css;
+    if(inside){ w=Math.round(Math.hypot(q[2]-q[0],q[3]-q[1])); h=Math.round(Math.hypot(q[6]-q[0],q[7]-q[1])); css=quadMatrix(w,h,q); }
+    else { var x0=Math.max(M,Math.min(q[0],q[6])), x1=Math.min(vw-M,Math.max(q[2],q[4])), y0=Math.max(M,Math.max(q[1],q[3])), y1=Math.min(vh-M,Math.min(q[5],q[7]));
+      w=Math.round(x1-x0); h=Math.round(y1-y0); css='translate('+x0+'px,'+y0+'px)'; }
+    if(Math.abs(w-thW)>2 || Math.abs(h-thH)>2){ thW=w; thH=h; thEl.style.width=w+'px'; thEl.style.height=h+'px'; }
+    thEl.style.transform=css; }
+  function quadMatrix(w,h,q){ /* CSS matrix3d that bends a w x h box onto the four corners q (TL,TR,BR,BL) */
+    var x0=q[0],y0=q[1],x1=q[2],y1=q[3],x2=q[4],y2=q[5],x3=q[6],y3=q[7];
+    var dx1=x1-x2, dx2=x3-x2, dy1=y1-y2, dy2=y3-y2, sx=x0-x1+x2-x3, sy=y0-y1+y2-y3, den=dx1*dy2-dx2*dy1;
+    var g=(sx*dy2-dx2*sy)/den, hh=(dx1*sy-sx*dy1)/den;
+    var a=x1-x0+g*x1, b=x3-x0+hh*x3, c=x0, d=y1-y0+g*y1, e=y3-y0+hh*y3, f=y0;
+    a/=w; d/=w; g/=w; b/=h; e/=h; hh/=h;
+    return 'matrix3d('+[a,d,0,g, b,e,0,hh, 0,0,1,0, c,f,0,1].join(',')+')'; }
   /* ---- poster films: click a poster that has one and the camera settles on the sharp lobby, then the film plays from that exact frame.
      The glitch rides over the stretch where the AI footage wobbles, and a click steps back out through another glitch. ---- */
   var PV={ freedom:{ src:'freedom', glitch:[2.95,3.3], hold:6.2, M:[1.01383,-0.00246,-0.112,0.00246,1.01383,-6.775] },
            walk:   { src:'../video/walkup', base:'frame', noRev:true, hold:99, M:[1,0,0,0,1,0] },
+           sign:   { src:'sign', hold:7.6, yt:true, M:[1,0,0,0,1,0] },   /* push into the sign, through it, into the theatre; Johnny's video, the doubled-sign dissolve rebuilt as one clean push */
            left:   { src:'cosmic',  glitch:[3.2,3.55], ring:2.1, hold:6.2, loop:'cosmic_loop_v5', joins:[], M:[0.99703,0.00138,9.887,-0.00138,0.99703,44.786] } };   /* film's first frame -> HD lobby still (1280px units) */
   var pvName=null, pvOn=false, pvBusy=false, pvA=0, pvU=0, pvEl={}, pvCur=null, pvRaf=0, pvSound=false;
   function pvMat(name){ var P=PV[name].M, Hm=PV[name].base==='frame'?[1,0,0,0,1,0]:HD_M; if(PV[name]._C) return PV[name]._C;   /* HD_M x M, as [a,b,c,d,e,f] rows */
@@ -456,12 +487,13 @@
       var failed=function(){ pvName=null; pvBusy=false; focus=null; cv.classList.remove('focused'); focusPoster(name); };   /* if the film can't play, fall back to the push-in */
       var go=function(){ pvCur=v; pvOn=true; var a0=performance.now();
         (function fade(n2){ pvA=Math.min(1,(n2-a0)/250); if(pvA<1 && pvOn) requestAnimationFrame(fade); })(a0);
-        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:function(){})); };
+        pvBusy=false; v._held=false; v._looped=false; if(name==='walk') footsteps(); pvRun(name, v, false, name==='walk'?arrive:(PV[name].loop?function(){ startLoop(name); }:(PV[name].yt?function(){ thShow(); }:function(){}))); };
       v._go=true; var pr=v.play(); if(pr && pr.then) pr.then(go,failed); else go(); })(t0);
   }
   function pvBack(){ /* step back out: the film plays in reverse, from wherever it is, back down to the lobby */
     if(pvBusy) return; pvBusy=true; cancelAnimationFrame(pvRaf); hint.classList.add('gone'); stopRing();
-    if(loopOn || pvLA>0){ glitchPulse(0.35,380); playGlitch(0.4); stopLoop(320); }   /* leaving the living poster: a quick glitch covers the jump back to the film */
+    if(loopOn || pvLA>0){ glitchPulse(0.35,380); playGlitch(0.4); stopLoop(320); }
+    if(thOn) thHide();   /* leaving the living poster: a quick glitch covers the jump back to the film */
     var name=pvName, f=pvEl[name].f, r=pvEl[name].r; if(!r){ stopSteps(); pressBtn.hidden=true; }
     var dur=f.duration||8, at=Math.min(f.ended?dur:f.currentTime, PV[name].hold);   /* skip the still hold at the end so it moves right away */
     var done=function(){ var a0=performance.now(); (function fade(n2){ var t=Math.min(1,(n2-a0)/300); pvA=1-t; draw(); if(t<1){ requestAnimationFrame(fade); return; }
